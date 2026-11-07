@@ -1,0 +1,1407 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1720">
+<meta name="description" content="Herramienta personal offline para organizar una guardia.">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./assets/icon-192.png">
+<title>Guardia PBA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Una sola vista nocturna: pantalla oscura de patrullero, alto contraste, botones grandes, barra inferior al alcance del pulgar. */
+:root{
+  color-scheme:dark;
+  --noche:#0f1720; --panel:#18232f; --borde:#2d3d4d; --texto:#edf2f6; --suave:#a6b5c3;
+  --senal:#f5b83d; --senal-txt:#1b1405; --ok:#54c98c; --alerta:#ff8a73;
+  --display:"Barlow Condensed","Arial Narrow",sans-serif; --body:"Barlow",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--noche);color:var(--texto);font:400 17px/1.45 var(--body);display:flex;flex-direction:column}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{font-family:var(--display);line-height:1.1;margin:0;text-wrap:balance}
+header{padding-top:max(12px, env(safe-area-inset-top));display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--borde)}
+header h1{font-size:25px;letter-spacing:.02em}
+#reloj{font:700 25px var(--display);color:var(--senal);font-variant-numeric:tabular-nums}
+main{flex:1;overflow-y:auto;padding:16px 16px 28px}
+.vista{display:flex;flex-direction:column;gap:14px;max-width:640px;margin:0 auto}
+nav{padding-bottom:env(safe-area-inset-bottom);display:grid;grid-template-columns:repeat(6,1fr);border-top:1px solid var(--borde);background:var(--panel)}
+nav button{background:none;border:0;border-top:3px solid transparent;padding:11px 2px 13px;font-weight:600;font-size:13px;color:var(--suave);min-height:54px;padding-left:0;padding-right:0;cursor:pointer}
+nav button[aria-current="page"]{color:var(--senal);border-top-color:var(--senal)}
+.panel{background:var(--panel);border:1px solid var(--borde);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:11px}
+.panel h2{font-size:23px}
+.ayuda{color:var(--suave);font-size:15px;margin:0}
+.aviso{border-left:4px solid var(--senal);padding:9px 12px;background:#2a2517;font-size:15px;border-radius:0 6px 6px 0}
+label{display:flex;flex-direction:column;gap:4px;font-size:14px;font-weight:600;color:var(--suave);min-width:0}
+input:not([type=checkbox]),select,textarea{width:100%;background:var(--noche);border:1px solid var(--borde);border-radius:6px;padding:11px;font-size:17px;font-weight:400;color:var(--texto)}
+textarea{min-height:92px;resize:vertical}
+:focus-visible{outline:3px solid var(--senal);outline-offset:1px}
+.dos{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fila{display:flex;flex-wrap:wrap;gap:8px}
+.btn{background:var(--panel);border:1px solid var(--suave);border-radius:6px;padding:11px 14px;font-weight:600;min-height:46px;cursor:pointer}
+.btn.prim{background:var(--senal);color:var(--senal-txt);border-color:var(--senal);font-weight:700}
+.btn.peligro{border-color:var(--alerta);color:var(--alerta)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.chico{min-height:38px;padding:6px 10px;font-size:15px}
+.chip{background:none;border:1px solid var(--borde);border-radius:6px;padding:8px 10px;font-weight:600;font-size:15px;cursor:pointer;min-height:42px}
+.chip[aria-pressed="true"]{background:var(--senal);color:var(--senal-txt);border-color:var(--senal)}
+.nov{display:grid;grid-template-columns:58px 1fr;gap:4px 10px;padding:11px 0;border-top:1px solid var(--borde)}
+.nov:first-child{border-top:0}
+.nov time{font:700 21px var(--display);color:var(--senal);font-variant-numeric:tabular-nums}
+.nov b{font-weight:700}
+.nov p{margin:2px 0 0;overflow-wrap:anywhere}
+.etiqueta{display:inline-block;font-size:12px;font-weight:700;border:1px solid var(--suave);border-radius:4px;padding:0 5px;margin-left:6px;color:var(--suave)}
+.acciones{grid-column:2;display:flex;gap:8px;flex-wrap:wrap}
+.salida{white-space:pre-wrap;background:var(--noche);border:1px solid var(--borde);border-radius:6px;padding:12px;font-size:16px;overflow-wrap:anywhere}
+.faltante{color:var(--senal)}
+.check{display:flex;flex-direction:row;gap:10px;align-items:flex-start;color:var(--texto);font-weight:400;font-size:16px;padding:9px 0;border-top:1px solid var(--borde);cursor:pointer}
+.check input{width:24px;height:24px;margin:0;flex:none;accent-color:var(--senal)}
+.check small{display:block;color:var(--suave);font-size:14px;margin-top:1px}
+.check.hecho span{color:var(--suave);text-decoration:line-through}
+.check.hecho small{text-decoration:none}
+details{background:var(--panel);border:1px solid var(--borde);border-radius:8px}
+summary{padding:13px 14px;font:700 21px var(--display);cursor:pointer;display:flex;justify-content:space-between;gap:10px;align-items:center}
+details>div{padding:0 14px 12px}
+.prog{font:600 15px var(--body);color:var(--senal);font-variant-numeric:tabular-nums;white-space:nowrap}
+.grande{font:700 39px/1 var(--display);color:var(--senal);font-variant-numeric:tabular-nums}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tile{border:1px solid var(--borde);border-radius:6px;padding:8px}
+.tile strong{display:block;font:700 27px var(--display);font-variant-numeric:tabular-nums}
+.tile span{font-size:13px;color:var(--suave)}
+.mesnav{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.mesnav h3{font-size:23px;text-align:center}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.dow{text-align:center;font-size:13px;color:var(--suave);font-weight:600}
+.dia{aspect-ratio:1;min-height:42px;background:none;border:1px solid var(--borde);border-radius:6px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0;font-variant-numeric:tabular-nums}
+.dia.guardia{background:var(--senal);color:var(--senal-txt);border-color:var(--senal)}
+.dia.hoy{outline:2px solid var(--texto);outline-offset:1px}
+.dia.sel{box-shadow:0 0 0 3px var(--ok)}
+.dia small{font-size:11px;font-weight:700;line-height:1}
+.dia:not(.guardia) small{color:var(--ok)}
+.tel{display:grid;grid-template-columns:62px 1fr;gap:10px;padding:8px 0;border-top:1px solid var(--borde);align-items:center}
+.tel a{font:700 25px var(--display);color:var(--senal)}
+.norma{border-top:1px solid var(--borde);padding-top:10px}
+.norma h3{font-size:20px}
+.norma p{margin:4px 0}
+.norma a{color:var(--senal)}
+a.btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.flota{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:11px 0;border-top:1px solid var(--borde);align-items:center}
+.flota:first-child{border-top:0}
+.flota b{font:700 23px var(--display);font-variant-numeric:tabular-nums}
+.pill{display:inline-block;align-self:flex-start;width:max-content;font-size:13px;font-weight:700;border-radius:4px;padding:1px 6px;background:#3a2020;color:var(--alerta)}
+.pill.ok{background:#17352a;color:var(--ok)}
+.item{border-top:1px solid var(--borde);padding:9px 0;display:flex;flex-direction:column;gap:6px}
+.item:first-child{border-top:0}
+.tres{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.tres .chip{padding:6px 4px}
+.modal{position:fixed;inset:0;background:rgba(5,9,13,.8);display:none;align-items:center;justify-content:center;padding:16px;z-index:5}
+.modal.ver{display:flex}
+.modal .panel{width:100%;max-width:560px}
+#tostada{position:fixed;left:16px;right:16px;bottom:76px;margin:auto;max-width:360px;background:var(--ok);color:#06180f;font-weight:700;text-align:center;border-radius:6px;padding:10px;display:none;z-index:6}
+@media (max-width:370px){nav button{font-size:12px}.dos{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:no-preference){.vista{animation:ent .12s ease-out}@keyframes ent{from{transform:translateY(3px)}to{transform:none}}}
+
+#bloqueo{position:fixed;inset:0;z-index:100;background:#0f1720;display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto}
+#bloqueo .panel{width:100%;max-width:440px;box-shadow:0 18px 60px #0009}
+#bloqueo h2{font-size:28px}
+#bloqueo .ayuda{line-height:1.5}
+#bloqueoEstado{min-height:22px;color:var(--alerta);font-size:14px}
+
+</style>
+</head>
+<body>
+<header><h1>Guardia PBA</h1><div class="fila" style="align-items:center"><div id="reloj" aria-label="Hora actual">--:--</div><button class="btn chico" id="bloqManual" type="button">Bloquear</button></div></header>
+<main id="main"></main>
+<nav aria-label="Secciones" id="nav"></nav>
+<div class="modal" id="conf" role="alertdialog" aria-modal="true" aria-labelledby="confT"><div class="panel"><h2 id="confT">¿Estás seguro?</h2><p class="ayuda" id="confMsg"></p><div class="fila"><button class="btn" id="confNo">No, volver</button><button class="btn peligro" id="confSi">Sí, borrar</button></div></div></div>
+<div class="modal" id="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgT"><div class="panel"><h2 id="dlgT"></h2><p class="ayuda" id="dlgA"></p>
+  <label>Contraseña<input id="dlg1" type="password" autocomplete="new-password"></label><label id="dlgL2">Repetí la contraseña<input id="dlg2" type="password" autocomplete="new-password"></label>
+  <div id="dlgE" role="status" style="color:var(--alerta);font-size:14px;min-height:20px"></div><div class="fila"><button class="btn" id="dlgNo" type="button">Cancelar</button><button class="btn prim" id="dlgSi" type="button">Aceptar</button></div></div></div>
+<div id="tostada" role="status"></div>
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalT"><div class="panel">
+  <h2 id="modalT">Copiá el texto</h2>
+  <p class="ayuda" id="modalA">Tu navegador no dejó copiar automáticamente. Mantené apretado el texto y elegí Copiar.</p>
+  <textarea id="modalTxt" rows="9"></textarea>
+  <div class="fila" id="modalBtns"><button class="btn prim" id="modalOk">Cerrar</button></div>
+</div></div>
+
+<div id="bloqueo" role="dialog" aria-modal="true" aria-labelledby="bloqueoTitulo"><section class="panel">
+  <h2 id="bloqueoTitulo">Guardia PBA protegida</h2>
+  <p class="ayuda" id="bloqueoTexto">Preparando almacenamiento seguro…</p>
+  <label id="pinLabel">Contraseña<input id="pin1" type="password" inputmode="text" autocomplete="current-password" maxlength="64" placeholder="Ingresá tu contraseña"></label>
+  <label id="pinRepetirLabel" style="display:none">Repetí la contraseña<input id="pin2" type="password" inputmode="text" autocomplete="new-password" maxlength="64" placeholder="Repetí la contraseña"></label>
+  <p class="ayuda" id="pinAyuda">Usá una contraseña que no uses en otros servicios. No existe recuperación si lo olvidás.</p>
+  <div id="bloqueoEstado" role="status"></div>
+  <button class="btn prim" id="pinAccion" type="button" disabled>Un momento…</button>
+  <button class="btn" id="huellaBtn" type="button" style="display:none">Desbloquear con huella</button>
+</section></div>
+<script>
+"use strict";
+const CLAVE="guardia-pba-v1";
+const hoyISO=()=>iso(new Date());
+function iso(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+const horaAhora=()=>new Date().toTimeString().slice(0,5);
+function fechaGuardia(){const n=new Date();try{if(D&&D.turnos&&horaAhora()<D.turnos.hora)return iso(new Date(n.getFullYear(),n.getMonth(),n.getDate()-1))}catch(e){}return iso(n)}
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const $=id=>document.getElementById(id);
+const fechaAR=f=>{if(!f)return"";const[a,m,d]=f.split("-");return d+"/"+m+"/"+a};
+const nuevoId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+
+/* ---------- Datos ---------- */
+const inicial=()=>({
+  nov:[
+    {id:"e1",hora:"06:40",cat:"Recorrida",lugar:"Av. Ejemplo y Calle 1",txt:"Recorrida preventiva sin novedad.",ej:true},
+    {id:"e2",hora:"07:15",cat:"Llamado 911",lugar:"Calle 2 N° 100",txt:"Vecino informa ruido. Se constata música alta, se dialoga y cesa.",ej:true}
+  ],
+  hist:[],
+  turnos:{ref:"2026-11-04",hora:"08:00",valor:0,ads:{},conf:true,h8:true},
+  flota:[{id:"m1",puesto:"Cuadrícula 1",num:"29.190",desde:"2026-11-06"},{id:"m2",puesto:"Cuadrícula 2",num:"29.052",desde:"2026-11-06"},{id:"m3",puesto:"Base",num:"",desde:""},{id:"m4",puesto:"Base",num:"",desde:""},{id:"m5",puesto:"Operativos",num:"",desde:""}],
+  recep:[],borrador:null,llamados:[],personas:[],dominios:[],personal:[],servicio:{fecha:hoyISO(),filas:{}},servicios:[],cambios:[],ultBk:"",domic:[],perim:[],rondines:[],pasadas:[],entregas:[],vendedores:[],criterioPerim:"Si se constata el incumplimiento, se traslada a la parte que está más lejos de su domicilio. En lugar neutral, se traslada a quien llegó segundo. Siempre manda lo que indique la fiscalía.",cierres:CIERRES_INI(),cierresV1:true,yo:{jer:"Subtte.",nombre:"Bogado Matías Ezequiel",legajo:"186.063"},val202611b:true,adEf:[],adObj:OBJ_INI(),adV2:true,cuadriculas:["Cuadrícula 1","Cuadrícula 2","Zona céntrica","Refuerzo de cuadrícula"],adVal:VALORES_INI(),adic:[],
+  fonetico:"A=Alicia\nB=Beatriz\nC=Carolina\nD=Dorotea\nE=Eva\nF=Francisca\nG=Guillermina\nH=Hombre\nI=Inés\nJ=Julia\nK=Kilo\nL=Lucía\nM=María\nN=Natalia\nÑ=Ñandú\nO=Ofelia\nP=Petrona\nQ=Quintana\nR=Rosa\nS=Sara\nT=Teresa\nU=Úrsula\nV=Venezuela\nW=Washington\nX=Xilofón\nY=Yolanda\nZ=Zapato\n1=primero\n2=segundo\n3=tercero\n4=cuarto\n5=quinto\n6=sexto\n7=séptimo\n8=octavo\n9=noveno\n0=nada",
+  codigos:"QAP=A la escucha\nQSL=Comprendido\nQTH=Dirección o ubicación\nQRT=Finalizar comunicación\nQRA=Nombre\nQRV=Adelante\nQRK=Reporte de señales\nQRL=Ocupado\nQRM=Interferencia\nQRU=Tráfico o mensaje para recibir o enviar\nH1=Limpieza del móvil\n115=Bajar a dependencia",
+  items:["Carrocería","Luces","Sirena y balizas","Radio","Cubiertas y auxilio","Documentación","Agua","Aceite"],
+  frases:["Recorrida sin novedad.","Zona sin novedad.","Control vehicular sin novedad.","Traslado sin novedad.","Se constata la situación y se dialoga con las partes.","Se retira del lugar sin más novedad."]
+});
+let hayStorage=true, D=inicial(), claveLocal=null, saltLocal=null, desbloqueada=false, guardadoPendiente=Promise.resolve(), datosLegado=null;
+try{const raw=localStorage.getItem(CLAVE);if(raw){const parsed=JSON.parse(raw);if(parsed&&parsed.formato==="guardia-pba-local-cifrado-v1"){datosLegado=parsed;}else{datosLegado=parsed;}}}
+catch(e){hayStorage=false;datosLegado=null;}
+function normalizarDatos(p){D=Object.assign(inicial(),p||{});D.turnos=Object.assign(inicial().turnos,p&&p.turnos||{});if(!D.turnos.conf){D.turnos.ref="2026-11-04";D.turnos.conf=true}if(!(p&&p.turnos&&p.turnos.h8)&&D.turnos.hora==="07:00")D.turnos.hora="08:00";D.turnos.h8=true;if(!(p&&p.val202611b)){VALORES_INI().forEach(v=>{if(!D.adVal.some(x=>x.grupo===v.grupo&&x.desde===v.desde))D.adVal.push(v)})}D.val202611b=true;if(!(p&&p.cierresV1)){CIERRES_INI().forEach(c=>{if(!D.cierres.some(x=>x.id===c.id))D.cierres.push(c)})}D.cierresV1=true;if(!(p&&p.adV2)&&Array.isArray(p&&p.adObj)&&!D.adObj.some(o=>o.id==="ca"))D.adObj.push(CANCHA());D.adV2=true;}
+function guardar(){
+  if(!desbloqueada||!claveLocal)return;
+  const snapshot=JSON.stringify(D);
+  guardadoPendiente=guardadoPendiente.then(async()=>{const iv=crypto.getRandomValues(new Uint8Array(12));const ct=await crypto.subtle.encrypt({name:"AES-GCM",iv},claveLocal,new TextEncoder().encode(snapshot));const envelope={formato:"guardia-pba-local-cifrado-v1",version:1,salt:b64(saltLocal),iv:b64(iv),datos:b64(ct)};localStorage.setItem(CLAVE,JSON.stringify(envelope));datosLegado=envelope;hayStorage=true;}).catch(()=>{hayStorage=false;tostada("No se pudo guardar cifrado. No cierres la app y exportá un respaldo.")});
+}
+
+
+/* ---------- Utilidades ---------- */
+function tostada(t){const e=$("tostada");e.textContent=t;e.style.display="block";clearTimeout(e._t);e._t=setTimeout(()=>e.style.display="none",1800)}
+function verModal(txt,titulo,ayuda){$("modalT").textContent=titulo;$("modalA").textContent=ayuda;$("modalTxt").value=txt;$("modal").classList.add("ver");$("modalTxt").focus()}
+$("modalOk").onclick=()=>$("modal").classList.remove("ver");
+async function copiar(txt,ok){
+  try{await navigator.clipboard.writeText(txt);tostada(ok||"Copiado")}
+  catch(e){verModal(txt,"Copiá el texto","Tu navegador no dejó copiar automáticamente. Mantené apretado el texto y elegí Copiar.")}
+}
+
+async function claveRespaldo(pass,salt){
+  const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(pass),"PBKDF2",false,["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:250000,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+}
+const b64=a=>{const u=new Uint8Array(a);let out="";for(let i=0;i<u.length;i+=32768)out+=String.fromCharCode(...u.subarray(i,i+32768));return btoa(out)};
+const deB64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function cifrarRespaldo(paquete,pass){
+  const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12)),key=await claveRespaldo(pass,salt);
+  const datos=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(JSON.stringify(paquete)));
+  return {formato:"guardia-pba-backup-cifrado",version:1,kdf:"PBKDF2-SHA-256",iteraciones:250000,cifrado:"AES-256-GCM",salt:b64(salt),iv:b64(iv),datos:b64(datos)};
+}
+async function descifrarRespaldo(p,pass){
+  const key=await claveRespaldo(pass,deB64(p.salt));
+  const raw=await crypto.subtle.decrypt({name:"AES-GCM",iv:deB64(p.iv)},key,deB64(p.datos));
+  return JSON.parse(new TextDecoder().decode(raw));
+}
+
+// Cifrado local: PBKDF2 deriva una clave AES-256-GCM del PIN. La clave solo vive en memoria.
+async function claveLocalDesdePin(pin,salt){
+  const base=await crypto.subtle.importKey("raw",new TextEncoder().encode(pin),"PBKDF2",false,["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:310000,hash:"SHA-256"},base,{name:"AES-GCM",length:256},true,["encrypt","decrypt"]);
+}
+async function cifrarLocal(obj,key){const iv=crypto.getRandomValues(new Uint8Array(12));const datos=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(JSON.stringify(obj)));return {formato:"guardia-pba-local-cifrado-v1",version:1,iv:b64(iv),datos:b64(datos)};}
+async function descifrarLocal(env,key){const raw=await crypto.subtle.decrypt({name:"AES-GCM",iv:deB64(env.iv)},key,deB64(env.datos));return JSON.parse(new TextDecoder().decode(raw));}
+function pantallaBloqueo(modo,mensaje){
+  const overlay=$("bloqueo");overlay.style.display="flex";$("main").innerHTML="";$("nav").innerHTML="";$("pin1").value="";$("pin2").value="";
+  $("bloqueoTitulo").textContent=modo==="crear"?"Crear protección de Guardia PBA":"Guardia PBA protegida";
+  $("bloqueoTexto").textContent=mensaje;
+  $("pinRepetirLabel").style.display=modo==="crear"?"flex":"none";
+  $("pinLabel").firstChild.textContent=modo==="crear"?"Crear contraseña":"Contraseña";
+  $("pin1").autocomplete=modo==="crear"?"new-password":"current-password";
+  $("pinAyuda").textContent=modo==="crear"?"Mínimo 10 caracteres, con letras y números. Si la olvidás, no se pueden recuperar los datos cifrados.":"El contenido se descifra solo en este dispositivo mientras la app está desbloqueada.";
+  $("pinAccion").textContent=modo==="crear"?"Crear protección":"Desbloquear";$("pinAccion").disabled=false;$("bloqueoEstado").textContent="";
+  $("pinAccion").dataset.modo=modo;setTimeout(()=>$("pin1").focus(),50);
+}
+async function migrarFotos(){
+  const db=await fotoDB();const {keys,values}=await new Promise((ok,no)=>{const tx=db.transaction("fotos"),st=tx.objectStore("fotos"),a=st.getAllKeys(),b=st.getAll();tx.oncomplete=()=>ok({keys:a.result||[],values:b.result||[]});tx.onerror=()=>no(tx.error)});
+  const convertidos=[];
+  for(let i=0;i<keys.length;i++){const v=values[i];if(typeof v==="string"){const iv=crypto.getRandomValues(new Uint8Array(12));const ct=await crypto.subtle.encrypt({name:"AES-GCM",iv},claveLocal,new TextEncoder().encode(v));convertidos.push([keys[i],{enc:"aes-gcm-v1",iv:b64(iv),data:b64(ct)}]);}}
+  if(convertidos.length)await new Promise((ok,no)=>{const tx=db.transaction("fotos","readwrite"),st=tx.objectStore("fotos");convertidos.forEach(([k,v])=>st.put(v,k));tx.oncomplete=ok;tx.onerror=()=>no(tx.error)});
+}
+const CLAVE_HUELLA=CLAVE+"-huella";
+const leerHuella=()=>{try{return JSON.parse(localStorage.getItem(CLAVE_HUELLA)||"null")}catch(e){return null}};
+const huellaValida=env=>{const h=leerHuella();return !!(h&&env&&env.salt&&h.salt===env.salt)};
+async function soportaHuella(){try{return !!(window.PublicKeyCredential&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable())}catch(e){return false}}
+async function claveDesdePrf(out){const base=await crypto.subtle.importKey("raw",out,"HKDF",false,["deriveKey"]);return crypto.subtle.deriveKey({name:"HKDF",hash:"SHA-256",salt:new Uint8Array(32),info:new TextEncoder().encode("guardia-pba-huella-v1")},base,{name:"AES-GCM",length:256},false,["encrypt","decrypt"])}
+async function prfGet(credId,prfSalt){
+  const r=await navigator.credentials.get({publicKey:{challenge:crypto.getRandomValues(new Uint8Array(32)),allowCredentials:[{type:"public-key",id:credId}],userVerification:"required",timeout:60000,extensions:{prf:{eval:{first:prfSalt}}}}});
+  const x=r.getClientExtensionResults();if(!x.prf||!x.prf.results||!x.prf.results.first)throw new Error("sin-prf");return x.prf.results.first;
+}
+// La huella no reemplaza el cifrado: el resultado PRF de la llave de acceso cifra una copia de la clave de datos.
+async function activarHuella(){
+  if(!desbloqueada||!claveLocal)throw new Error("bloqueada");
+  if(!await soportaHuella())throw new Error("sin-soporte");
+  const prfSalt=crypto.getRandomValues(new Uint8Array(32));
+  const cred=await navigator.credentials.create({publicKey:{rp:{name:"Guardia PBA"},user:{id:crypto.getRandomValues(new Uint8Array(16)),name:"guardia-pba",displayName:"Guardia PBA"},challenge:crypto.getRandomValues(new Uint8Array(32)),pubKeyCredParams:[{type:"public-key",alg:-7},{type:"public-key",alg:-257}],authenticatorSelection:{authenticatorAttachment:"platform",userVerification:"required",residentKey:"preferred"},timeout:60000,extensions:{prf:{eval:{first:prfSalt}}}}});
+  const ext=cred.getClientExtensionResults();
+  if(!ext.prf||ext.prf.enabled===false)throw new Error("sin-prf");
+  const out=(ext.prf.results&&ext.prf.results.first)||await prfGet(cred.rawId,prfSalt);
+  const kh=await claveDesdePrf(out),raw=await crypto.subtle.exportKey("raw",claveLocal),iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=await crypto.subtle.encrypt({name:"AES-GCM",iv},kh,raw);
+  localStorage.setItem(CLAVE_HUELLA,JSON.stringify({v:1,salt:b64(saltLocal),cred:b64(cred.rawId),prfSalt:b64(prfSalt),iv:b64(iv),ct:b64(ct)}));
+}
+async function claveConHuella(){
+  const h=leerHuella(),out=await prfGet(deB64(h.cred),deB64(h.prfSalt)),kh=await claveDesdePrf(out);
+  const raw=await crypto.subtle.decrypt({name:"AES-GCM",iv:deB64(h.iv)},kh,deB64(h.ct));
+  return crypto.subtle.importKey("raw",raw,{name:"AES-GCM"},true,["encrypt","decrypt"]);
+}
+const errHuella=e=>e&&e.message==="sin-soporte"?"Este teléfono no tiene huella disponible para la app.":e&&e.message==="sin-prf"?"Este teléfono o navegador no permite usar la huella para cifrar. Seguí con la contraseña.":e&&e.name==="NotAllowedError"?"Se canceló o no se reconoció la huella.":"No se pudo usar la huella. Entrá con la contraseña.";
+const reglaClave=c=>c.length>=10&&/[a-zA-ZñÑ]/.test(c)&&/\d/.test(c);
+function terminarDesbloqueo(){desbloqueada=true;$("bloqueo").style.display="none";$("bloqManual").style.display="inline-flex";$("bloqManual").onclick=()=>bloquearAhora();pintar();iniciarBloqueoAutomatico();}
+async function iniciarProteccion(){
+  const hb=$("huellaBtn");hb.style.display="none";
+  if(!crypto.subtle||location.protocol==="file:"){pantallaBloqueo("crear","Para proteger los datos, abrí Guardia PBA desde una dirección HTTPS. El archivo abierto directamente no permite cifrado seguro.");$("pinAccion").disabled=true;return;}
+  const env=datosLegado;
+  if(env&&env.formato==="guardia-pba-local-cifrado-v1"){
+    const conH=huellaValida(env);pantallaBloqueo("abrir",conH?"Usá la huella o ingresá tu contraseña.":"Ingresá tu contraseña para acceder a los registros.");
+    if(conH){hb.style.display="inline-flex";hb.onclick=async()=>{hb.disabled=true;$("bloqueoEstado").textContent="Esperando la huella…";
+      try{saltLocal=deB64(env.salt);claveLocal=await claveConHuella();normalizarDatos(await descifrarLocal(env,claveLocal));await migrarFotos();terminarDesbloqueo()}
+      catch(e){claveLocal=null;saltLocal=null;$("bloqueoEstado").textContent=errHuella(e)}finally{hb.disabled=false}}}
+  }
+  else pantallaBloqueo("crear",env?"Se encontraron datos anteriores sin cifrar. Al crear tu contraseña, se migrarán y quedarán cifrados en este dispositivo.":"Elegí una contraseña para crear tu espacio local cifrado.");
+  $("pinAccion").onclick=async()=>{
+    const modo=$("pinAccion").dataset.modo,pin=$("pin1").value;
+    if(modo==="crear"&&!reglaClave(pin)){$("bloqueoEstado").textContent="Usá al menos 10 caracteres, con letras y números.";return;}
+    if(!pin){$("bloqueoEstado").textContent="Ingresá la contraseña.";return;}
+    $("pinAccion").disabled=true;$("bloqueoEstado").textContent="Procesando cifrado…";
+    try{
+      if(modo==="crear"){
+        if(pin!==$("pin2").value)throw new Error("Las contraseñas no coinciden.");
+        const salt=crypto.getRandomValues(new Uint8Array(16));saltLocal=salt;claveLocal=await claveLocalDesdePin(pin,salt);
+        normalizarDatos(env&&env.formato!=="guardia-pba-local-cifrado-v1"?env:inicial());
+        await migrarFotos();const sealed=await cifrarLocal(D,claveLocal);sealed.salt=b64(salt);localStorage.setItem(CLAVE,JSON.stringify(sealed));localStorage.removeItem(CLAVE_HUELLA);datosLegado=sealed;
+      }else{
+        const salt=deB64(env.salt);saltLocal=salt;claveLocal=await claveLocalDesdePin(pin,salt);
+        normalizarDatos(await descifrarLocal(env,claveLocal));await migrarFotos();
+      }
+      terminarDesbloqueo();
+    }catch(e){claveLocal=null;saltLocal=null;$("bloqueoEstado").textContent=e.message==="Las contraseñas no coinciden."?e.message:"Contraseña incorrecta, archivo dañado o almacenamiento inaccesible.";}
+    finally{$("pinAccion").disabled=false;}
+  };
+}
+let temporizadorBloqueo=null,autoBloqueoListo=false;
+function reiniciarBloqueo(){if(!desbloqueada)return;clearTimeout(temporizadorBloqueo);temporizadorBloqueo=setTimeout(bloquearAhora,5*60*1000)}
+function iniciarBloqueoAutomatico(){
+  if(!autoBloqueoListo){autoBloqueoListo=true;["pointerdown","keydown","touchstart"].forEach(ev=>document.addEventListener(ev,reiniciarBloqueo,{passive:true}));
+    document.addEventListener("visibilitychange",()=>{if(document.hidden&&desbloqueada){clearTimeout(temporizadorBloqueo);temporizadorBloqueo=setTimeout(bloquearAhora,60*1000)}else reiniciarBloqueo()});}
+  reiniciarBloqueo();
+}
+async function bloquearAhora(){if(!desbloqueada)return;await guardadoPendiente;clearTimeout(temporizadorBloqueo);desbloqueada=false;claveLocal=null;saltLocal=null;D=inicial();$("bloqManual").style.display="none";iniciarProteccion();}
+function pedirClave(titulo,ayuda,doble,min){return new Promise(res=>{
+  $("dlgT").textContent=titulo;$("dlgA").textContent=ayuda;$("dlg1").value="";$("dlg2").value="";$("dlgE").textContent="";$("dlgL2").style.display=doble?"flex":"none";$("dlg").classList.add("ver");setTimeout(()=>$("dlg1").focus(),50);
+  const fin=v=>{$("dlg").classList.remove("ver");res(v)};
+  $("dlgNo").onclick=()=>fin(null);
+  $("dlgSi").onclick=()=>{const a=$("dlg1").value;if(a.length<min){$("dlgE").textContent="Usá al menos "+min+" caracteres.";return}if(doble&&a!==$("dlg2").value){$("dlgE").textContent="Las contraseñas no coinciden.";return}fin(a)};
+})}
+function confirmar(msg){return new Promise(res=>{$("confMsg").textContent=msg;const si=$("confSi"),txt=si.textContent;si.textContent="Sí, continuar";$("conf").classList.add("ver");
+  const fin=v=>{$("conf").classList.remove("ver");si.textContent=txt;res(v)};$("confNo").onclick=()=>fin(false);si.onclick=()=>fin(true)})}
+
+const urlWA=t=>"https://wa.me/?text="+encodeURIComponent(t);
+const botonWA=(id,t)=>`<a class="btn prim" id="${id}" href="${esc(urlWA(t))}" target="_blank" rel="noopener">Enviar por WhatsApp</a>`;
+
+/* ---------- Novedades ---------- */
+const CATS=["Recorrida","Llamado 911","Control","Intervención","Traslado","Móvil","Otro"];
+let catSel="Recorrida", confirmarCierre=false, eNov=null;
+const bkVencido=()=>{const u=D.ultBk?new Date(D.ultBk).getTime():0;return Date.now()-u>7*864e5&&(D.nov.filter(n=>!n.ej).length+D.personas.length+D.llamados.length+D.dominios.length+D.vendedores.length+D.adic.length)>2};
+function ordenadas(){return [...D.nov].sort((a,b)=>a.hora.localeCompare(b.hora))}
+function textoResumen(lista,tit){
+  const l=lista||ordenadas();
+  if(!l.length)return "Sin novedades asentadas.";
+  return (tit||"RESUMEN DE NOVEDADES - "+fechaAR(hoyISO()))+"\n\n"+l.map(n=>n.hora+" - "+n.cat+(n.lugar?" - "+n.lugar:"")+"\n"+n.txt).join("\n\n");
+}
+function vistaNovedades(){
+  const l=ordenadas().reverse(), hayEj=D.nov.some(n=>n.ej);
+  return `<div class="vista">
+  ${hayStorage?"":`<div class="aviso">Este navegador no permite guardar datos. Lo que anotes se pierde al cerrar. Copiá el resumen antes de salir.</div>`}
+  ${bkVencido()?`<div class="aviso">Hace más de 7 días que no hacés un respaldo. Copialo en Respaldo de datos, al final de esta pantalla.</div>`:""}
+  <form class="panel" id="fNov">
+    <h2>${eNov?"Editar novedad":"Nueva novedad"}</h2>
+    <div class="fila" role="group" aria-label="Tipo">${CATS.map(c=>`<button type="button" class="chip" data-cat="${c}" aria-pressed="${c===catSel}">${c}</button>`).join("")}</div>
+    <div class="dos"><label>Hora<input type="time" id="nHora" value="${horaAhora()}"></label><label>Lugar<input id="nLugar" autocomplete="off"></label></div>
+    <label>Qué pasó<textarea id="nTxt" required></textarea></label>
+    <div class="fila" role="group" aria-label="Frases frecuentes">${D.frases.map((f,i)=>`<button type="button" class="chip" data-fr="${i}">${esc(f)}</button>`).join("")}</div>
+    <button class="btn prim">${eNov?"Guardar cambios":"Anotar novedad"}</button>
+  </form>
+  <section class="panel">
+    <h2>Guardia actual · ${D.nov.length} ${D.nov.length===1?"novedad":"novedades"}</h2>
+    ${hayEj?`<p class="ayuda">Los ítems marcados EJEMPLO son de muestra. <button class="btn chico" id="sinEj">Borrar ejemplos</button></p>`:""}
+    <div>${l.map(n=>`<article class="nov"><time>${esc(n.hora)}</time><div><b>${esc(n.cat)}</b>${n.ej?`<span class="etiqueta">EJEMPLO</span>`:""}${n.lugar?` · ${esc(n.lugar)}`:""}<p>${esc(n.txt)}</p></div>
+      <div class="acciones"><button class="btn chico" data-parte="${n.id}">Llevar al parte</button><button class="btn chico" data-edn="${n.id}">Editar</button><button class="btn chico peligro" data-del="${n.id}">Borrar</button></div></article>`).join("")||`<p class="ayuda">Todavía no anotaste nada en esta guardia.</p>`}</div>
+    <div class="fila">${botonWA("waRes",textoResumen())}<button class="btn" id="copRes">Copiar resumen para el relevo</button>
+    <button class="btn" id="cerrar">${confirmarCierre?"Sí, cerrar guardia":"Cerrar guardia"}</button></div>
+    ${confirmarCierre?`<p class="ayuda">Se guarda en el historial y la lista queda vacía.</p>`:""}
+  </section>
+  <details><summary>Guardias anteriores <span class="prog">${D.hist.length}</span></summary><div>
+    ${D.hist.map((h,i)=>`<div class="tel" style="grid-template-columns:1fr auto"><span>${fechaAR(h.fecha)} · ${h.nov.length} novedades</span><button class="btn chico" data-hist="${i}">Copiar</button></div>`).join("")||`<p class="ayuda">Vacío.</p>`}
+  </div></details>
+  <details><summary>Editar frases frecuentes</summary><div class="vista" style="padding-top:0">
+    <label>Una frase por línea<textarea id="frEd" rows="6">${esc(D.frases.join("\n"))}</textarea></label>
+    <button class="btn" id="frOk">Guardar frases</button></div></details>
+  <details><summary>Respaldo de datos</summary><div class="vista" style="padding-top:0">
+    <p class="ayuda">Exportá un archivo cifrado con los registros y las fotografías guardadas en esta app. Vas a crear una contraseña: no la pierdas, porque no se puede recuperar. Guardá el archivo fuera del teléfono.</p>
+    <div class="fila"><button class="btn prim" id="copBk">Descargar respaldo completo</button><button class="btn" id="resBk">Importar respaldo</button><input id="bkFile" type="file" accept="application/json,.json" hidden></div>
+    <button class="btn peligro" id="borrarTodo">Borrar todos los datos</button></div>
+  </div></details>
+  </div>`;
+}
+function atarNovedades(){
+  document.querySelectorAll("[data-cat]").forEach(b=>b.onclick=()=>{catSel=b.dataset.cat;document.querySelectorAll("[data-cat]").forEach(x=>x.setAttribute("aria-pressed",x===b))});
+  $("fNov").onsubmit=e=>{e.preventDefault();const txt=$("nTxt").value.trim();if(!txt)return;
+    const dat={hora:$("nHora").value||horaAhora(),cat:catSel,lugar:$("nLugar").value.trim(),txt};
+    if(eNov){const n=D.nov.find(x=>x.id===eNov);Object.assign(n,dat);delete n.ej;registrarCambio("Edición de novedad",n.hora+" "+n.cat);eNov=null}else D.nov.push(Object.assign({id:nuevoId()},dat));
+    guardar();pintar();tostada("Novedad guardada")};
+  if(eNov){const n=D.nov.find(x=>x.id===eNov);if(n){$("nHora").value=n.hora;$("nLugar").value=n.lugar;$("nTxt").value=n.txt}}
+  document.querySelectorAll("[data-edn]").forEach(b=>b.onclick=()=>{eNov=b.dataset.edn;const n=D.nov.find(x=>x.id===eNov);catSel=n.cat;pintar();$("main").scrollTop=0});
+  document.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{const n=D.nov.find(x=>x.id===b.dataset.del);seguro("¿Estás seguro de borrar esta novedad? No se puede deshacer.",()=>{D.nov=D.nov.filter(x=>x!==n);registrarCambio("Borrado de novedad",n.hora+" "+n.cat);guardar();pintar()})});
+  document.querySelectorAll("[data-parte]").forEach(b=>b.onclick=()=>{const n=D.nov.find(x=>x.id===b.dataset.parte);
+    P.hora=n.hora;P.lugar=n.lugar;P.relato=n.txt;ir("parte")});
+  const s=$("sinEj");if(s)s.onclick=()=>{D.nov=D.nov.filter(n=>!n.ej);guardar();pintar()};
+  document.querySelectorAll("[data-fr]").forEach(b=>b.onclick=()=>{const t=$("nTxt");t.value=(t.value?t.value.trim()+" ":"")+D.frases[+b.dataset.fr];t.focus()});
+  $("frOk").onclick=()=>{D.frases=$("frEd").value.split("\n").map(x=>x.trim()).filter(Boolean);guardar();pintar();tostada("Frases guardadas")};
+  $("copRes").onclick=()=>copiar(textoResumen(),"Resumen copiado");
+  $("cerrar").onclick=()=>{if(!confirmarCierre){confirmarCierre=true;pintar();return}
+    if(D.nov.length){D.hist.unshift({fecha:fechaGuardia(),nov:ordenadas()});}D.nov=[];confirmarCierre=false;guardar();pintar();tostada("Guardia cerrada")};
+  document.querySelectorAll("[data-hist]").forEach(b=>b.onclick=()=>{const h=D.hist[+b.dataset.hist];copiar(textoResumen(h.nov,"RESUMEN DE NOVEDADES - "+fechaAR(h.fecha)),"Resumen copiado")});
+  $("copBk").onclick=async()=>{try{
+    const claves=await fotoClaves(),valores=await Promise.all(claves.map(k=>fotoLeer(k)));
+    const paquete={formato:"guardia-pba-backup",version:2,creado:new Date().toISOString(),datos:D,fotos:{claves,valores}};
+    const pass=await pedirClave("Contraseña del respaldo","Mínimo 10 caracteres. No se guarda en la app: anotala en otro lugar seguro.",true,10);if(!pass)return;
+    if(!crypto.subtle){tostada("Este navegador no admite cifrado seguro");return}
+    const cifrado=await cifrarRespaldo(paquete,pass);
+    const blob=new Blob([JSON.stringify(cifrado)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");
+    a.href=url;a.download="guardia-pba-respaldo-"+hoyISO()+".json";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
+    D.ultBk=new Date().toISOString();guardar();await guardadoPendiente;
+    tostada("Respaldo descargado. Guardalo en un lugar seguro.");pintar();
+  }catch(e){tostada("No se pudo generar el respaldo")}};
+  $("resBk").onclick=()=>$("bkFile").click();
+  $("bkFile").onchange=async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;try{
+    let p=JSON.parse(await f.text());
+    if(p.formato==="guardia-pba-backup-cifrado"){
+      const pass=await pedirClave("Contraseña del respaldo","Ingresá la contraseña con la que cifraste este archivo.",false,1);if(!pass)return;
+      try{p=await descifrarRespaldo(p,pass)}catch(e){throw new Error("Contraseña incorrecta o archivo dañado")}
+    }
+    const datos=p.formato==="guardia-pba-backup"?p.datos:p;
+    if(!datos||!Array.isArray(datos.nov)||!datos.turnos)throw new Error("Formato inválido");
+    if(!await confirmar("La importación reemplaza los datos actuales. ¿Ya guardaste un respaldo de lo que hay ahora?"))return;
+    if(p.formato==="guardia-pba-backup"&&p.fotos&&Array.isArray(p.fotos.claves)&&Array.isArray(p.fotos.valores)&&p.fotos.claves.length===p.fotos.valores.length){const db=await fotoDB();await new Promise((ok,no)=>{const tx=db.transaction("fotos","readwrite");tx.objectStore("fotos").clear();tx.oncomplete=ok;tx.onerror=()=>no(tx.error)});for(let i=0;i<p.fotos.claves.length;i++)await fotoGuardar(p.fotos.claves[i],p.fotos.valores[i]);}
+    normalizarDatos(datos);guardar();await guardadoPendiente;pintar();tostada("Respaldo importado y cifrado localmente");
+  }catch(err){tostada("No se pudo importar: archivo no válido o contraseña incorrecta")}finally{e.target.value=""}};
+  $("borrarTodo").onclick=()=>seguro("¿Estás seguro de borrar TODOS los datos de la app? No se puede deshacer.",()=>seguro("Última confirmación: se borran registros, personal y turnos.",()=>{D=Object.assign(inicial(),{nov:[]});guardar();pintar();tostada("Datos borrados")}));
+}
+
+/* ---------- Móviles ---------- */
+const COMB=["Reserva","1/4","1/2","3/4","Lleno"];
+const FOTOS=["Frente","Atrás","Lado izquierdo","Lado derecho","Interior","Tablero y kilometraje"];
+const movil=id=>D.flota.find(x=>x.id===id);
+const ultima=mid=>D.recep.find(r=>r.mid===mid);
+const novedadesDe=r=>r?Object.entries(r.items).filter(([,v])=>v.e==="nov").map(([k,v])=>k+(v.txt?": "+v.txt:"")+(v.prev?" (ya informado)":" (nuevo)")):[];
+const iniciarRecep=(mid,tipo)=>{const m=movil(mid);D.borrador={tipo:tipo||"RECEPCIÓN",mid,num:m.num,puesto:m.puesto,fecha:hoyISO(),hora:horaAhora(),entrega:"",km:"",comb:"",items:{},conos:"",escopeta:false,escNum:"",cart:"",sinDesc:false,fotos:{},fotoKey:nuevoId(),obs:""};guardar();pintar();$("main").scrollTop=0};
+function textoRecep(b){
+  const e=(k)=>b.items[k]||{},bien=D.items.filter(k=>e(k).e==="ok"),na=D.items.filter(k=>e(k).e==="na"),sin=D.items.filter(k=>!e(k).e),nov=novedadesDe(b);
+  let t=(b.tipo||"RECEPCIÓN")+" DE MÓVIL "+(b.num||"[número]")+" - "+b.puesto+"\n"+fechaAR(b.fecha).slice(0,5)+" "+b.hora+" - Km "+(b.km||"[km]")+" - Combustible "+(b.comb||"[nivel]");
+  if(b.entrega)t+="\nEntrega: "+b.entrega;
+  if(bien.length)t+="\nOK: "+bien.join(", ");
+  if(na.length)t+="\nNo aplica: "+na.join(", ");
+  if(sin.length)t+="\nSin revisar: "+sin.join(", ");
+  t+="\nNovedades: "+(nov.length?"\n- "+nov.join("\n- "):"sin novedad");
+  const eq=[];if(+b.conos>0)eq.push(b.conos+" conos");
+  if(b.escopeta)eq.push("escopeta"+(b.escNum?" N° "+b.escNum:"")+(b.cart?", "+b.cart+" cartuchos":""));
+  if(eq.length)t+="\nRecibe con: "+eq.join(", ")+(b.sinDesc?(b.tipo==="ENTREGA"?" (sin descargar en base)":" (turno saliente no descargó en base)"):"");
+  if(b.obs)t+="\nObservaciones: "+b.obs;
+  return t;
+}
+function vistaMoviles(){
+  const b=D.borrador;
+  if(b)return vistaRecep(b);
+  return `<div class="vista">
+  <section class="panel"><h2>Recibir móvil</h2><div>
+  ${D.flota.map(m=>{const u=ultima(m.id),n=novedadesDe(u).length;return `<div class="flota"><div><span class="ayuda">${esc(m.puesto)}</span><br><b>${esc(m.num)||"Sin número"}</b>${m.desde?`<div class="ayuda">Asignado desde ${fechaAR(m.desde).slice(0,5)}</div>`:""}
+    ${u?`<div class="ayuda">Última recepción ${fechaAR(u.fecha).slice(0,5)} <span class="pill ${n?"":"ok"}">${n?n+" novedad"+(n>1?"es":""):"sin novedad"}</span></div>`:""}</div>
+    <div class="fila" style="flex-direction:column"><button class="btn prim" data-rec="${m.id}" ${m.num?"":"disabled"}>Recibir</button><button class="btn" data-ent="${m.id}" ${m.num?"":"disabled"}>Entregar</button></div></div>`}).join("")}
+  </div>${D.flota.some(m=>!m.num)?`<p class="ayuda">Completá los números que faltan en Cambiar o agregar móviles.</p>`:""}</section>
+  <details><summary>Cambiar o agregar móviles</summary><div class="vista" style="padding-top:0">
+  <p class="ayuda">Si cambian un móvil, escribí el número nuevo en ese puesto. La fecha de asignación se actualiza sola.</p>
+  ${D.flota.map(m=>`<div class="dos"><label>Puesto<input id="fp_${m.id}" data-fp="${m.id}" value="${esc(m.puesto)}"></label><label>Móvil<input id="fn_${m.id}" data-fn="${m.id}" inputmode="decimal" value="${esc(m.num)}"></label></div><button class="btn chico peligro" data-fd="${m.id}">Sacar este móvil</button>`).join("")}
+  <div class="fila"><button class="btn prim" id="fGuardar">Guardar flota</button><button class="btn" id="fAgregar">Agregar móvil</button></div></div></details>
+  <details><summary>Ítems de la revisión</summary><div class="vista" style="padding-top:0"><label>Un ítem por línea<textarea id="itEd" rows="8">${esc(D.items.join("\n"))}</textarea></label><button class="btn" id="itOk">Guardar ítems</button></div></details>
+  <details><summary>Recepciones anteriores <span class="prog">${D.recep.length}</span></summary><div>
+  ${D.recep.slice(0,20).map((r,i)=>`<div class="tel" style="grid-template-columns:1fr auto"><span>${fechaAR(r.fecha).slice(0,5)} · ${esc(r.num)}</span><button class="btn chico" data-rcop="${i}">Copiar</button></div>`).join("")||`<p class="ayuda">Vacío.</p>`}</div></details>
+  </div>`;
+}
+function vistaRecep(b){
+  const u=ultima(b.mid),np=novedadesDe(u),nf=FOTOS.filter(f=>b.fotos[f]).length;
+  return `<div class="vista">
+  <section class="panel"><h2>${b.tipo==="ENTREGA"?"Entregando":"Recibiendo"} ${esc(b.num)} · ${esc(b.puesto)}</h2>
+  ${u?`<div class="aviso">Última recepción ${fechaAR(u.fecha).slice(0,5)}${u.km?", km "+esc(u.km):""}. ${np.length?"Novedades: "+esc(np.join("; ")):"Sin novedades."}</div>`:""}
+  <div class="dos"><label>Hora<input type="time" id="r_hora" data-r="hora" value="${esc(b.hora)}"></label><label>Kilometraje<input id="r_km" data-r="km" inputmode="numeric" value="${esc(b.km)}"></label></div>
+  <div class="dos"><label>Combustible<select id="r_comb" data-r="comb"><option value="">Elegir</option>${COMB.map(c=>`<option ${c===b.comb?"selected":""}>${c}</option>`).join("")}</select></label><label>Entrega (turno o iniciales)<input id="r_ent" data-r="entrega" value="${esc(b.entrega)}"></label></div></section>
+  <section class="panel"><h2>Revisión</h2><div>
+  ${D.items.map((k,i)=>{const v=b.items[k]||{};return `<div class="item"><b>${esc(k)}</b><div class="tres" role="group" aria-label="${esc(k)}">
+    ${[["ok","Bien"],["nov","Novedad"],["na","No aplica"]].map(([c,l])=>`<button class="chip" data-it="${i}" data-e="${c}" aria-pressed="${v.e===c}">${l}</button>`).join("")}</div>
+    ${v.e==="nov"?`<label>Qué tiene<input id="in_${i}" data-int="${i}" value="${esc(v.txt||"")}"></label><label class="check" style="border:0;padding:0"><input type="checkbox" id="ip_${i}" data-ip="${i}" ${v.prev?"checked":""}><span>Ya estaba informado</span></label>`:""}</div>`}).join("")}
+  </div></section>
+  <section class="panel"><h2>Equipo que viene en el móvil</h2>
+  <div class="dos"><label>Conos (cantidad)<input id="r_con" data-r="conos" type="number" min="0" inputmode="numeric" value="${esc(b.conos)}"></label>
+  <label class="check" style="align-self:end;border:0"><input type="checkbox" id="r_esc" data-rc="escopeta" ${b.escopeta?"checked":""}><span>Viene con escopeta</span></label></div>
+  ${b.escopeta?`<div class="dos"><label>N° de escopeta<input id="r_en" data-r="escNum" value="${esc(b.escNum)}"></label><label>Cartuchos<input id="r_car" data-r="cart" type="number" min="0" inputmode="numeric" value="${esc(b.cart)}"></label></div>`:""}
+  ${b.escopeta||+b.conos>0?`<label class="check" style="border:0"><input type="checkbox" id="r_sd" data-rc="sinDesc" ${b.sinDesc?"checked":""}><span>${b.tipo==="ENTREGA"?"Queda sin descargar en base":"El turno saliente no llegó a descargar en base"}</span></label>`:""}
+  <label>Observaciones<input id="r_obs" data-r="obs" value="${esc(b.obs)}"></label></section>
+  <section class="panel"><h2>Registro fotográfico · <span id="fCont">${nf} de ${FOTOS.length}</span></h2><p class="ayuda">Tomá la foto en el momento o elegila de la galería. Se guarda en el dispositivo y queda asociada a esta recepción/entrega.</p><div>
+  ${FOTOS.map((f,i)=>`<div class="item"><b>${esc(f)}</b><div class="fila"><label class="btn chico" style="display:inline-flex;flex-direction:row;align-items:center">Cámara / galería<input type="file" accept="image/*" capture="environment" data-foto-movil="${i}" style="display:none"></label><span class="ayuda" id="fm_${i}">${b.fotos[f]?"Foto guardada":"Sin foto"}</span><button class="btn chico peligro" type="button" data-foto-borrar="${i}" ${b.fotos[f]?"":"disabled"}>Quitar</button></div><img id="fprev_${i}" alt="Foto ${esc(f)}" style="display:none;max-width:100%;max-height:220px;object-fit:contain;border-radius:6px"></div>`).join("")}</div></section>
+  <section class="panel"><h2>Informe</h2><div class="salida" id="rSal"></div>
+  <div class="fila">${botonWA("waRec",textoRecep(b))}<button class="btn" id="rCop">Copiar</button></div>
+  <button class="btn prim" id="rFin">Terminar y pasar a novedades</button><button class="btn peligro" id="rCan">Cancelar recepción</button></section>
+  </div>`;
+}
+function atarMoviles(){
+  const b=D.borrador;
+  if(b)b.fotoKey=b.fotoKey||("movil_"+b.mid+"_"+b.fecha+"_"+b.hora);
+  const sal=()=>{guardar();const e=$("rSal");if(e){e.textContent=textoRecep(b);$("waRec").href=urlWA(textoRecep(b))}};
+  if(!b){
+    document.querySelectorAll("[data-rec]").forEach(x=>x.onclick=()=>iniciarRecep(x.dataset.rec));
+    document.querySelectorAll("[data-ent]").forEach(x=>x.onclick=()=>iniciarRecep(x.dataset.ent,"ENTREGA"));
+    const lee=()=>D.flota.forEach(m=>{const n=$("fn_"+m.id).value.trim();if(n!==m.num){m.num=n;m.desde=n?hoyISO():""}m.puesto=$("fp_"+m.id).value.trim()||m.puesto});
+    $("fGuardar").onclick=()=>{lee();guardar();pintar();tostada("Flota guardada")};
+    $("fAgregar").onclick=()=>{lee();D.flota.push({id:nuevoId(),puesto:"Base",num:"",desde:""});guardar();pintar()};
+    document.querySelectorAll("[data-fd]").forEach(x=>x.onclick=()=>seguro("¿Estás seguro de sacar este móvil de la flota?",()=>{D.flota=D.flota.filter(m=>m.id!==x.dataset.fd);guardar();pintar()}));
+    $("itOk").onclick=()=>{const l=$("itEd").value.split("\n").map(x=>x.trim()).filter(Boolean);if(l.length)D.items=l;guardar();pintar();tostada("Ítems guardados")};
+    document.querySelectorAll("[data-rcop]").forEach(x=>x.onclick=()=>copiar(textoRecep(D.recep[+x.dataset.rcop]),"Informe copiado"));
+    return;
+  }
+  document.querySelectorAll("[data-r]").forEach(i=>i.oninput=i.onchange=()=>{const k=i.dataset.r,antes=+b.conos>0;b[k]=i.value;sal();if(k==="conos"&&(+b.conos>0)!==antes&&!b.escopeta)pintar()});
+  document.querySelectorAll("[data-rc]").forEach(i=>i.onchange=()=>{b[i.dataset.rc]=i.checked;guardar();pintar()});
+  document.querySelectorAll("[data-it]").forEach(x=>x.onclick=()=>{const k=D.items[+x.dataset.it];b.items[k]=Object.assign(b.items[k]||{},{e:x.dataset.e});guardar();pintar()});
+  document.querySelectorAll("[data-int]").forEach(i=>i.oninput=()=>{b.items[D.items[+i.dataset.int]].txt=i.value;sal()});
+  document.querySelectorAll("[data-ip]").forEach(i=>i.onchange=()=>{b.items[D.items[+i.dataset.ip]].prev=i.checked;sal()});
+  document.querySelectorAll("[data-foto-movil]").forEach(i=>{
+    const ix=+i.dataset.fotoMovil,nombre=FOTOS[ix],key=b.fotoKey+"_"+ix;
+    if(b.fotos[nombre])fotoLeer(key).then(src=>{if(src){const im=$("fprev_"+ix);im.src=src;im.style.display="block"}}).catch(()=>{});
+    i.onchange=async()=>{if(!i.files||!i.files[0])return;try{const src=await achicar(i.files[0]);await fotoGuardar(key,src);b.fotos[nombre]=true;guardar();$("fm_"+ix).textContent="Foto guardada";const im=$("fprev_"+ix);im.src=src;im.style.display="block";document.querySelector('[data-foto-borrar="'+ix+'"]').disabled=false;$("fCont").textContent=FOTOS.filter(f=>b.fotos[f]).length+" de "+FOTOS.length;tostada("Foto guardada")}catch(e){tostada("No se pudo guardar la foto")}i.value=""};
+  });
+  document.querySelectorAll("[data-foto-borrar]").forEach(x=>x.onclick=async()=>{const ix=+x.dataset.fotoBorrar,nombre=FOTOS[ix],key=b.fotoKey+"_"+ix;await fotoBorrar(key);delete b.fotos[nombre];guardar();$("fprev_"+ix).style.display="none";$("fm_"+ix).textContent="Sin foto";x.disabled=true;$("fCont").textContent=FOTOS.filter(f=>b.fotos[f]).length+" de "+FOTOS.length});
+  $("rCop").onclick=()=>copiar(textoRecep(b),"Informe copiado");
+  $("rCan").onclick=()=>seguro("¿Estás seguro de cancelar? Se pierde lo cargado en esta recepción.",()=>{D.borrador=null;guardar();pintar()});
+  $("rFin").onclick=()=>{const n=novedadesDe(b);D.recep.unshift(b);
+    D.nov.push({id:nuevoId(),hora:b.hora,cat:"Móvil",lugar:"",txt:(b.tipo==="ENTREGA"?"Entrega":"Recepción")+" móvil "+b.num+" ("+b.puesto+"). "+(n.length?"Novedades: "+n.join("; ")+".":"Sin novedad.")});
+    D.borrador=null;guardar();pintar();$("main").scrollTop=0;tostada("Recepción guardada")};
+  sal();
+}
+
+/* ---------- Parte ---------- */
+const TIPOS={
+  general:{n:"Intervención general",campos:[["resultado","Resultado"]]},
+  aprehension:{n:"Aprehensión",campos:[["persona","Persona (iniciales)"],["motivo","Motivo de la aprehensión"],["derechos","Derechos informados a las (hora)"],["fiscal","Fiscal o UFI comunicada"],["horaFiscal","Hora de comunicación"],["medico","Reconocimiento médico"]]},
+  siniestro:{n:"Siniestro vial",campos:[["vehiculos","Vehículos intervinientes"],["lesionados","Lesionados y atención médica"],["alcoholemia","Prueba de alcoholemia y resultado"],["fiscal","Fiscal o UFI comunicada"],["horaFiscal","Hora de comunicación"]]},
+  familiar:{n:"Violencia familiar",campos:[["medida","Medida judicial vigente"],["asistencia","Asistencia a la víctima"],["menores","Niños o adolescentes presentes"],["derivacion","Derivación o comunicación realizada"]]},
+  requisa:{n:"Requisa o control",campos:[["persona","Persona o vehículo (sin datos completos)"],["motivo","Motivo de la medida"],["hallado","Resultado o elementos hallados"],["fiscal","Fiscal o juez comunicado"],["horaFiscal","Hora de comunicación"]]}
+};
+const ORIGENES=["desplazamiento del 911","prevención durante recorrida","requerimiento de un vecino","orden de la superioridad","orden judicial o fiscal"];
+const P={tipo:"general",fecha:hoyISO(),hora:horaAhora(),lugar:"",movil:"",personal:"",origen:ORIGENES[0],relato:""};
+const m=(v,t)=>v&&String(v).trim()?v.trim():"["+t+"]";
+function textoParte(){
+  const T=TIPOS[P.tipo];
+  let s="PARTE - "+T.n.toUpperCase()+"\n\n";
+  s+="En "+m(P.lugar,"lugar")+", el "+(fechaAR(P.fecha)||"[fecha]")+" a las "+m(P.hora,"hora")+" horas, el personal "+m(P.personal,"personal actuante")+", a bordo del móvil "+m(P.movil,"móvil")+", interviene por "+P.origen+".\n\n";
+  s+="Relato: "+m(P.relato,"qué se constató y qué se hizo")+"\n";
+  T.campos.forEach(([k,l])=>{s+="\n"+l+": "+m(P[k],"completar")});
+  (P.personas||[]).forEach(p=>{s+="\n\n"+textoPersona(p)});
+  return s;
+}
+const PV={};
+function edadDe(f,ref){if(!f)return"";const[a,me,d]=f.split("-").map(Number),h=ref||new Date();let e=h.getFullYear()-a;if(h.getMonth()+1<me||(h.getMonth()+1===me&&h.getDate()<d))e--;return e>=0?e:""}
+function textoPersona(p){
+  const v=(n,x)=>x&&String(x).trim()?n+": "+String(x).trim()+"\n":"";
+  const pad=(n,x,e)=>x&&x.trim()?n+": "+x.trim()+(e?" ("+e+")":"")+"\n":"";
+  return ("DATOS DE PERSONA\nApellido y nombre: "+(p.nombre||"[completar]")+"\nDNI: "+(p.dni||"[completar]")+"\n"
+    +(p.nac?"Fecha de nacimiento: "+fechaAR(p.nac)+"\nEdad: "+edadDe(p.nac)+" años\n":"")
+    +v("Domicilio",p.dom)+v("Teléfono",p.tel)+v("Ocupación",p.ocu)+v("Sabe leer y escribir",p.lee)
+    +pad("Madre",p.madre,p.madreV)+pad("Padre",p.padre,p.padreV)).trim();
+}
+const pintaSalida=()=>{const e=$("salida");if(e)e.innerHTML=esc(textoParte()).replace(/\[[^\]]+\]/g,x=>`<span class="faltante">${x}</span>`);const w=$("waParte");if(w)w.href=urlWA(textoParte())};
+function vistaParte(){
+  const T=TIPOS[P.tipo];
+  return `<div class="vista">
+  <div class="aviso">Borrador personal para pasar al sistema o formulario oficial. No se guarda y no reemplaza el acta.</div>
+  <form class="panel" id="fParte" autocomplete="off">
+    <h2>Datos del parte</h2>
+    <label>Tipo<select id="pTipo">${Object.entries(TIPOS).map(([k,v])=>`<option value="${k}" ${k===P.tipo?"selected":""}>${v.n}</option>`).join("")}</select></label>
+    <div class="dos"><label>Fecha<input type="date" data-p="fecha" id="pf" value="${esc(P.fecha)}"></label><label>Hora<input type="time" data-p="hora" id="ph" value="${esc(P.hora)}"></label></div>
+    <label>Lugar<input data-p="lugar" id="pl" value="${esc(P.lugar)}"></label>
+    <div class="dos"><label>Móvil<input data-p="movil" id="pm" value="${esc(P.movil)}"></label><label>Personal actuante<input data-p="personal" id="pa" value="${esc(P.personal)}"></label></div>
+    <label>Interviene por<select data-p="origen" id="po">${ORIGENES.map(o=>`<option ${o===P.origen?"selected":""}>${o}</option>`).join("")}</select></label>
+    <label>Relato<textarea data-p="relato" id="pr">${esc(P.relato)}</textarea></label>
+    <button type="button" class="btn" id="traerNov">Traer novedades de la guardia al relato</button>
+    ${T.campos.map(([k,l])=>`<label>${esc(l)}<input data-p="${k}" id="p_${k}" value="${esc(P[k]||"")}"></label>`).join("")}
+  </form>
+  <section class="panel"><h2>Personas del registro</h2>
+    <label>Agregar al parte<select id="pSel"><option value="">Elegir persona</option>${D.personas.slice().reverse().map(p=>`<option value="${p.id}">${esc(p.nombre||"Sin nombre")} · ${fechaAR(p.fecha).slice(0,5)}</option>`).join("")}</select></label>
+    ${(P.personas||[]).map((p,i)=>`<div class="tel" style="grid-template-columns:1fr auto"><span>${esc(p.nombre||"Sin nombre")}</span><button type="button" class="btn chico peligro" data-pdel="${i}">Quitar</button></div>`).join("")}
+    <p class="ayuda">Cargá personas en Registro, Personas. El texto del parte no se guarda, pero el registro de la persona sí.</p></section>
+  <section class="panel"><h2>Texto generado</h2><div class="salida" id="salida"></div>
+    <div class="fila">${botonWA("waParte",textoParte())}<button class="btn" id="copParte">Copiar parte</button><button class="btn peligro" id="limpiarP">Limpiar parte</button></div></section>
+  </div>`;
+}
+function atarParte(){
+  $("pTipo").onchange=e=>{P.tipo=e.target.value;pintar()};
+  document.querySelectorAll("[data-p]").forEach(i=>i.oninput=i.onchange=()=>{P[i.dataset.p]=i.value;pintaSalida()});
+  $("traerNov").onclick=()=>{P.relato=ordenadas().map(n=>n.hora+": "+n.txt).join("\n");$("pr").value=P.relato;pintaSalida()};
+  $("pSel").onchange=e=>{const p=D.personas.find(x=>x.id===e.target.value);if(p){(P.personas=P.personas||[]).push(p);pintar()}};
+  document.querySelectorAll("[data-pdel]").forEach(b=>b.onclick=()=>{P.personas.splice(+b.dataset.pdel,1);pintar()});
+  $("copParte").onclick=()=>copiar(textoParte(),"Parte copiado");
+  $("limpiarP").onclick=()=>seguro("¿Estás seguro de limpiar el parte? El texto no se guarda.",()=>{Object.keys(P).forEach(k=>delete P[k]);Object.assign(P,{tipo:"general",fecha:hoyISO(),hora:horaAhora(),lugar:"",movil:"",personal:"",origen:ORIGENES[0],relato:""});pintar()});
+  pintaSalida();
+}
+
+/* ---------- Turnos 24x48 ---------- */
+const CICLO=3;
+const nDia=f=>{const[a,m,d]=f.split("-").map(Number);return Math.round(Date.UTC(a,m-1,d)/864e5)};
+const esGuardia=(f,ref)=>{const r=(nDia(f)-nDia(ref))%CICLO;return r===0||r===-0||(r+CICLO)%CICLO===0};
+function proximaGuardia(ahora,ref,hora){
+  const[h,mi]=hora.split(":").map(Number);
+  for(let i=-1;i<=CICLO+1;i++){
+    const d=new Date(ahora.getFullYear(),ahora.getMonth(),ahora.getDate()+i,h,mi);
+    if(!esGuardia(iso(d),ref))continue;
+    const fin=new Date(d.getTime()+864e5);
+    if(ahora>=d&&ahora<fin)return{enCurso:true,ini:d,fin};
+    if(d>ahora)return{enCurso:false,ini:d,fin};
+  }
+  return null;
+}
+function resumenMes(a,m,T){
+  const dias=new Date(a,m+1,0).getDate();let g=0,ad=0;
+  for(let d=1;d<=dias;d++){const f=iso(new Date(a,m,d));if(esGuardia(f,T.ref))g++;ad+=+(T.ads[f]||0)}
+  return{guardias:g,horas:g*24,adicional:ad,importe:ad*(+T.valor||0)};
+}
+const hoy0=new Date();let calA=hoy0.getFullYear(),calM=hoy0.getMonth(),diaSel=null;
+function restante(ms){const h=Math.floor(ms/36e5),d=Math.floor(h/24);return d?d+" d "+(h%24)+" h":h+" h "+Math.floor(ms%36e5/6e4)+" min"}
+const fmtDia=d=>d.toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"});
+function urlCalendario(ini,T){
+  const f=d=>iso(d).replace(/-/g,"")+"T"+String(d.getHours()).padStart(2,"0")+String(d.getMinutes()).padStart(2,"0")+"00";
+  const fin=new Date(ini.getTime()+864e5);
+  return "https://calendar.google.com/calendar/render?action=TEMPLATE&text="+encodeURIComponent("Guardia 24x48")+"&dates="+f(ini)+"/"+f(fin)+"&ctz=America/Argentina/Buenos_Aires&recur="+encodeURIComponent("RRULE:FREQ=DAILY;INTERVAL="+CICLO);
+}
+function vistaTurnos(){
+  const T=D.turnos,p=proximaGuardia(new Date(),T.ref,T.hora),R=resumenMes(calA,calM,T);
+  const primero=(new Date(calA,calM,1).getDay()+6)%7,dias=new Date(calA,calM+1,0).getDate();
+  let celdas="";for(let i=0;i<primero;i++)celdas+="<span></span>";
+  for(let d=1;d<=dias;d++){const f=iso(new Date(calA,calM,d)),ad=T.ads[f];
+    celdas+=`<button class="dia ${esGuardia(f,T.ref)?"guardia":""} ${f===hoyISO()?"hoy":""} ${f===diaSel?"sel":""}" data-dia="${f}" aria-label="${fechaAR(f)}${esGuardia(f,T.ref)?", guardia":""}${ad?", "+ad+" horas adicionales":""}">${d}${ad?`<small>+${ad}h</small>`:""}</button>`}
+  const mes=(m=>m.charAt(0).toUpperCase()+m.slice(1))(new Date(calA,calM,1).toLocaleDateString("es-AR",{month:"long",year:"numeric"}));
+  return `<div class="vista">
+  ${T.conf?"":`<div class="aviso">Cargá abajo la fecha de una guardia tuya real. El calendario muestra una guardia hoy solo como ejemplo.</div>`}
+  <section class="panel">
+    <h2>${p&&p.enCurso?"Estás de guardia":"Próxima guardia"}</h2>
+    ${p?`<div class="grande">${p.enCurso?"Faltan "+restante(p.fin-new Date()):"En "+restante(p.ini-new Date())}</div>
+    <p class="ayuda" style="text-transform:none">${p.enCurso?"Termina el "+fmtDia(p.fin)+" a las "+T.hora:"Entrás el "+fmtDia(p.ini)+" a las "+T.hora}</p>`:""}
+  </section>
+  <section class="panel">
+    <div class="mesnav"><button class="btn chico" id="mesAnt" aria-label="Mes anterior">Anterior</button><h3>${mes}</h3><button class="btn chico" id="mesSig" aria-label="Mes siguiente">Siguiente</button></div>
+    <div class="tiles"><div class="tile"><strong>${R.guardias}</strong><span>guardias</span></div><div class="tile"><strong>${R.horas}</strong><span>horas de guardia</span></div><div class="tile"><strong>${R.adicional}</strong><span>horas adicionales</span></div></div>
+    ${+T.valor?`<p class="ayuda">Adicionales estimados del mes: <b>$ ${R.importe.toLocaleString("es-AR")}</b></p>`:""}
+    <div class="cal">${["L","M","M","J","V","S","D"].map(x=>`<span class="dow">${x}</span>`).join("")}${celdas}</div>
+    <p class="ayuda">Tocá un día para cargar horas adicionales. Las guardias cuentan en el mes en que empiezan.</p>
+    ${diaSel?`<div class="dos"><label>Horas adicionales del ${fechaAR(diaSel)}<input type="number" min="0" step="0.5" id="adH" inputmode="decimal" value="${T.ads[diaSel]||""}"></label><div style="display:flex;align-items:flex-end"><button class="btn prim" id="adOk" style="width:100%">Guardar horas</button></div></div>`:""}
+  </section>
+  <form class="panel" id="fTurno"><h2>Tu régimen: 24 x 48</h2>
+    <div class="dos"><label>Fecha de una guardia tuya<input type="date" id="tRef" value="${T.ref}" required></label><label>Hora de entrada<input type="time" id="tHora" value="${T.hora}" required></label></div>
+    <label>Valor de la hora adicional en pesos (opcional)<input type="number" min="0" id="tVal" inputmode="numeric" value="${+T.valor||""}"></label>
+    <button class="btn prim">Guardar régimen</button></form>
+  ${p?`<section class="panel"><h2>Calendario del teléfono</h2><p class="ayuda">Crea en Google Calendar una guardia repetida cada 3 días desde la próxima fecha. Confirmala allá y elegí el aviso que quieras.</p><a class="btn" href="${esc(urlCalendario(p.ini,T))}" target="_blank" rel="noopener">Agregar guardias a Google Calendar</a></section>`:""}
+  </div>`;
+}
+function atarTurnos(){
+  document.querySelectorAll("[data-dia]").forEach(b=>b.onclick=()=>{diaSel=b.dataset.dia;pintar()});
+  $("mesAnt").onclick=()=>{calM--;if(calM<0){calM=11;calA--}diaSel=null;pintar()};
+  $("mesSig").onclick=()=>{calM++;if(calM>11){calM=0;calA++}diaSel=null;pintar()};
+  const ok=$("adOk");if(ok)ok.onclick=()=>{const v=+$("adH").value;if(v>0)D.turnos.ads[diaSel]=v;else delete D.turnos.ads[diaSel];guardar();diaSel=null;pintar();tostada("Horas guardadas")};
+  $("fTurno").onsubmit=e=>{e.preventDefault();Object.assign(D.turnos,{ref:$("tRef").value,hora:$("tHora").value,valor:+$("tVal").value||0,conf:true});guardar();pintar();tostada("Régimen guardado")};
+}
+
+/* ---------- Guía ---------- */
+const GUIAS=[
+ {id:"apre",t:"Aprehensión",p:[
+  ["Confirmá que el caso encuadra: flagrancia u otro supuesto de aprehensión","CPP arts. 153 a 156"],
+  ["Identificate y advertí antes de usar la fuerza, salvo las excepciones legales","Ley 13.482 art. 13 inc. g"],
+  ["Usá solo la fuerza estrictamente necesaria","Ley 13.482 art. 13 inc. f · CPP art. 294 inc. 9"],
+  ["Informale de forma comprensible el motivo y sus derechos","Ley 13.482 art. 16 · CPP art. 294 inc. 10"],
+  ["Facilitá la comunicación inmediata con un familiar o allegado y el pedido de abogado","Ley 13.482 art. 16"],
+  ["Garantizá el reconocimiento médico","Ley 13.482 art. 16"],
+  ["Comunicá de inmediato a juez de garantías, fiscal y defensor oficial","CPP arts. 155 y 296"],
+  ["Presentá a la persona de inmediato ante el fiscal","CPP art. 155"],
+  ["Labrá el acta de forma inmediata","Ley 13.482 art. 19"]]},
+ {id:"esce",t:"Escena del hecho",p:[
+  ["Asegurá el lugar y asistí a heridos",""],
+  ["Cuidá los rastros y evitá que se altere el lugar hasta que llegue la fiscalía","CPP art. 294 inc. 2"],
+  ["Si hace falta, ordená que los presentes no se retiren e informá ya a la fiscalía","CPP art. 294 inc. 3"],
+  ["Si la demora puede afectar la investigación, documentá estado de personas, cosas y lugar según indique Policía Científica","CPP art. 294 inc. 4"],
+  ["Comunicá el delito de acción pública de inmediato","CPP art. 296"],
+  ["Anotá horas de arribo, personas presentes y quién ingresó al lugar",""]]},
+ {id:"sini",t:"Siniestro vial",p:[
+  ["Señalizá y protegé la zona",""],
+  ["Pedí asistencia médica por 911 o 107 según la zona",""],
+  ["Identificá conductores, vehículos y testigos",""],
+  ["Tomá las pruebas para determinar alcohol en sangre de los intervinientes. La tolerancia es cero","Ley 13.927 · Ley 15.402 · Dec. 532/09"],
+  ["Si hay lesionados o fallecidos, preservá la escena y comunicá a la fiscalía","CPP arts. 294 y 296"],
+  ["Registrá posición de vehículos y estado de la calzada antes de moverlos, salvo riesgo",""]]},
+ {id:"fami",t:"Violencia familiar",p:[
+  ["Hacé cesar el riesgo y separá a las partes",""],
+  ["Asegurá atención médica si hace falta",""],
+  ["Preguntá si hay una medida judicial vigente. Si se incumple, avisá de inmediato al juzgado","Ley 12.569 art. 7 bis"],
+  ["Informá que puede denunciar sin abogado y orientala a la dependencia que corresponda","Ley 12.569 art. 6 bis"],
+  ["La comisaría debe recibir la denuncia sea o no delito y remitirla de inmediato al juzgado, con copia a Comisaría de la Mujer o Servicio Local","Dec. 2875/05 art. 6"],
+  ["Si la víctima es menor, incapaz, adulta mayor o con discapacidad imposibilitada, la denuncia es inmediata","Ley 12.569 art. 4"],
+  ["Mantené la reserva de identidad de quien denuncia","Ley 12.569 art. 6"],
+  ["Dale la Línea 144 y la 137",""],
+  ["Ante el pedido de auxilio judicial, acompañá el retiro de efectos personales","Ley 12.569 art. 7 inc. e"]]},
+ {id:"ado",t:"Niños y adolescentes",p:[
+  ["Determiná la edad al momento del hecho. El régimen penal juvenil rige de 14 años hasta antes de cumplir 18","Ley 27.801"],
+  ["Si tiene menos de 14, consultá a la fiscalía o juzgado y al Servicio Local",""],
+  ["Notificá de inmediato a padres, tutores o guardadores. Si no se puede, al Ministerio Público","Ley 13.482 art. 16"],
+  ["Ponelo de inmediato a disposición del juez","Ley 13.482 art. 17"],
+  ["No lo alojes en dependencia policial ni con personas adultas","Ley 13.482 art. 17 · Ley 27.801"],
+  ["Protegé su identidad: no difundas datos que lo identifiquen","Ley 27.801"],
+  ["Pedí la directiva vigente de tu fuerza: la ley nueva convive con normas provinciales anteriores",""]]},
+ {id:"extr",t:"Menor extraviado",p:[
+  ["Recibí la denuncia de inmediato. No hay que esperar horas","Ley 13.994 art. 4"],
+  ["Comunicala en no más de 2 horas a la Secretaría de Derechos Humanos para el Registro","Ley 13.994 art. 4 · Ley 14.776"],
+  ["Tomá descripción, ropa, último lugar visto y foto reciente",""],
+  ["Difundí por radio a los móviles de la zona",""],
+  ["Línea 142: chicos perdidos",""]]},
+ {id:"requ",t:"Requisa y control",p:[
+  ["Fundá el motivo concreto para presumir que oculta objetos vinculados a un delito","CPP art. 225"],
+  ["Si es urgente, avisá de inmediato a juez y fiscal","CPP art. 294 inc. 5"],
+  ["Invitá primero a exhibir el objeto","CPP art. 225"],
+  ["Hacela por separado y respetando el pudor","CPP art. 225"],
+  ["A una mujer la requisa otra mujer, salvo demora perjudicial para la investigación","CPP art. 225"],
+  ["Labrá el acta y hacela firmar. Si no firma, dejá constancia del motivo","CPP art. 225"],
+  ["En operativos públicos de prevención podés revisar pertenencias y vehículos en casos graves o urgentes, con aviso inmediato a fiscal y juez","CPP art. 294 inc. 5"]]}
+];
+const hechos={};let guiaAbierta=null;
+const TELS=[["911","Emergencias y despacho médico en PBA"],["107","SAME, solo en algunas localidades"],["144","Violencia de género, 24 h"],["137","Violencia familiar y sexual, 24 h"],["102","Derechos de niñas, niños y adolescentes"],["142","Chicos perdidos"],["145","Trata de personas"],["135","Prevención del suicidio"]];
+function vistaGuia(){
+  return `<div class="vista">
+  <div class="aviso">Ayuda memoria. Mandan la orden del fiscal, la ley vigente y las directivas de tu fuerza. Las tildes se borran al salir de la app.</div>
+  ${GUIAS.map(g=>{const n=g.p.filter((_,i)=>hechos[g.id+i]).length;return `<details data-g="${g.id}" ${guiaAbierta===g.id?"open":""}><summary>${g.t}<span class="prog">${n} de ${g.p.length}</span></summary><div>
+    ${g.p.map((s,i)=>`<label class="check ${hechos[g.id+i]?"hecho":""}"><input type="checkbox" id="${g.id}${i}" data-c="${g.id+i}" ${hechos[g.id+i]?"checked":""}><span>${esc(s[0])}${s[1]?`<small>${esc(s[1])}</small>`:""}</span></label>`).join("")}
+    ${n?`<button class="btn chico" data-rg="${g.id}">Reiniciar</button>`:""}</div></details>`}).join("")}
+  <details ${guiaAbierta==="tel"?"open":""} data-g="tel"><summary>Teléfonos útiles</summary><div>
+  ${TELS.map(t=>`<div class="tel"><a href="tel:${t[0]}">${t[0]}</a><span>${t[1]}</span></div>`).join("")}</div></details>
+  </div>`;
+}
+function atarGuia(){
+  document.querySelectorAll("details[data-g]").forEach(d=>d.ontoggle=()=>{if(d.open)guiaAbierta=d.dataset.g;else if(guiaAbierta===d.dataset.g)guiaAbierta=null});
+  document.querySelectorAll("[data-c]").forEach(c=>c.onchange=()=>{hechos[c.dataset.c]=c.checked;pintar()});
+  document.querySelectorAll("[data-rg]").forEach(b=>b.onclick=()=>{Object.keys(hechos).filter(k=>k.startsWith(b.dataset.rg)).forEach(k=>delete hechos[k]);pintar()});
+}
+
+/* ---------- Normativa ---------- */
+const L13482="https://normas.gba.gob.ar/documentos/xapPdi40.html",CPP="https://leyes-ar.com/codigo_procesal_penal_buenos_aires.htm",L12569="https://www.mpba.gov.ar/files/v2021/documents/CDyE/Leyes%20Provinciales/Ley%2012569.Violencia%20familiar.pdf",D2875="https://www.mpba.gov.ar/files/documents/sw20050287520051128.pdf";
+const NORMAS=[
+ ["CPP arts. 153 a 156: aprehensión","Regulan la aprehensión. El detalle de los supuestos del art. 153 hay que leerlo en el texto vigente: la copia consultada no fue confiable en ese artículo.",CPP,"aprehension detencion arresto incisos"],
+ ["CPP art. 154: flagrancia","Hay flagrancia si el autor es sorprendido al cometer el delito o inmediatamente después, si lo persiguen la policía, la víctima o el público, o si tiene objetos o indicios que hacen suponer que acaba de participar.",CPP,"flagrante sorprendido persecucion"],
+ ["CPP art. 155: presentación del aprehendido","Quien aprehende debe presentar a la persona de inmediato ante el fiscal y comunicar según el art. 296.",CPP,"fiscal aprehendido comunicar"],
+ ["CPP art. 225: requisa personal","Se ordena con motivos suficientes para presumir que la persona oculta objetos vinculados a un delito. Se invita a exhibirlos, se respeta el pudor, a una mujer la requisa otra mujer salvo demora perjudicial, y se labra acta.",CPP,"requisa cacheo pudor acta mujer"],
+ ["CPP art. 294: atribuciones policiales","Recibir denuncias, preservar rastros y lugar, retener presentes si es necesario, documentar lo urgente, requisas y allanamientos urgentes con aviso inmediato, interrogar testigos, aprehender, incomunicar hasta 12 horas según art. 152, usar la fuerza necesaria e informar derechos.",CPP,"atribuciones testigos allanamiento incomunicacion operativo vehiculos"],
+ ["CPP art. 296: comunicación","Todo delito de acción pública se comunica de inmediato al juez de garantías y al fiscal competentes, y también al defensor oficial de turno.",CPP,"comunicar fiscal juez defensor"],
+ ["Ley 13.482 art. 13: deberes y uso de la fuerza","Fuerza solo en la medida estrictamente necesaria. Identificarse y advertir antes si es inevitable, salvo excepciones. Arma de fuego solo en legítima defensa propia o de terceros o por estado de necesidad con peligro grave, inminente y actual para la vida.",L13482,"arma fuego fuerza legitima defensa advertencia dar voz"],
+ ["Ley 13.482 art. 15: demora y 12 horas","Se limita la libertad por orden judicial, por casos del CPP o la ley contravencional, o para conocer la identidad si la persona se niega o no tiene documentación. Aviso inmediato a la autoridad judicial y nunca más de 12 horas.",L13482,"identificacion averiguacion antecedentes demorado doce horas dni"],
+ ["Ley 13.482 art. 16: derechos de la persona","Motivo y derechos de inmediato y de forma comprensible, comunicación con familiar o allegado, abogado y reconocimiento médico. Si es menor o incapaz, se avisa de inmediato a los responsables o al Ministerio Público.",L13482,"derechos abogado medico familia"],
+ ["Ley 13.482 art. 17: menores","Prohíbe alojar menores en dependencias policiales. Se ponen de inmediato a disposición del juez, que tiene hasta 24 horas para derivarlos a un lugar legalmente destinado.",L13482,"menor calabozo comisaria juez"],
+ ["Ley 13.482 art. 19: acta","La privación de libertad se registra en acta de inmediato, con copia al superior y al Ministerio Público.",L13482,"acta detencion registro"],
+ ["Ley 12.569 art. 4: denuncia obligatoria","Si la víctima es menor, incapaz, anciana o con discapacidad y no puede actuar por sí, los obligados deben denunciar de inmediato.",L12569,"violencia familiar denuncia obligatoria"],
+ ["Ley 12.569 art. 7: medidas judiciales","El juez adopta medidas dentro de las 48 horas: cese de actos, perímetro, exclusión, restitución de efectos con fuerza pública, secuestro de armas y otras.",L12569,"perimetral exclusion hogar restriccion armas"],
+ ["Ley 12.569 art. 7 bis: incumplimiento","Si se incumple una medida, se avisa de inmediato al juzgado, que puede pedir fuerza pública. Si configura desobediencia u otro delito, se informa al juez penal.",L12569,"incumplimiento perimetral desobediencia"],
+ ["Decreto 2875/05 art. 6: recepción","Si la denuncia se hace en comisaría, debe recibirse sea o no delito y remitirse de inmediato al juzgado, con copia a Comisaría de la Mujer zonal o Servicio Local.",D2875,"denuncia comisaria mujer servicio local formulario"],
+ ["Ley 27.801: régimen penal juvenil","Rige desde el 5/9/2026, de los 14 años hasta las cero horas del día en que se cumplen 18, según la edad al momento del hecho. Prohíbe alojar adolescentes con adultos y exige reserva de identidad. En PBA una cautelar la suspendió y un tribunal de apelación la revocó.",ADO(),"menor adolescente imputabilidad 14 años juvenil"],
+ ["Ley 13.927 y Ley 15.402: tránsito","Alcohol cero: la provincia prohíbe conducir vehículos con motor con alcoholemia superior a cero. En un siniestro la autoridad debe tomar las pruebas necesarias.","https://normas.gba.gob.ar/documentos/VrlrpQhO.html","alcoholemia alcohol transito licencia siniestro"],
+ ["Ley 13.994 art. 4 (Ley 14.776): extravío de menores","Las denuncias se reciben de inmediato y se comunican en no más de 2 horas a la Secretaría de Derechos Humanos para el Registro.","https://normas.gba.gob.ar/documentos/xqqd9tpx.html","extravio perdido desaparecido chico registro"],
+ ["Decreto-Ley 8031/73 art. 4: Código de Faltas","La acción por faltas es pública y la policía debe proceder de oficio.","https://normas.gba.gob.ar/documentos/ZBOPDhkV.html","contravencion faltas ebriedad"]
+];
+function ADO(){return "https://www.diarioconstitucional.cl/2026/09/22/tribunal-revoca-suspension-del-nuevo-regimen-penal-juvenil-y-ordena-continuar-su-aplicacion-en-buenos-aires/"}
+let busca="";
+const plano=s=>s.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
+const filtraNormas=q=>{const t=plano(q).split(/\s+/).filter(Boolean);return NORMAS.filter(n=>{const h=plano(n[0]+" "+n[1]+" "+n[3]);return t.every(x=>h.includes(x))})};
+function listaNormas(){const l=filtraNormas(busca);return l.map(n=>`<article class="norma"><h3>${esc(n[0])}</h3><p>${esc(n[1])}</p><a href="${n[2]}" target="_blank" rel="noopener">Ver fuente</a></article>`).join("")||`<p class="ayuda">No encontré nada con esas palabras. Probá con una sola, como requisa o menor.</p>`}
+function vistaNormas(){
+  return `<div class="vista">
+  <div class="aviso">Resúmenes propios revisados el 05/11/2026. Antes de citar en una actuación, leé el artículo en el texto oficial vigente.</div>
+  <section class="panel"><label>Buscar por tema o artículo<input id="bus" type="search" autocomplete="off" value="${esc(busca)}"></label><div id="lNor">${listaNormas()}</div></section></div>`;
+}
+function atarNormas(){$("bus").oninput=e=>{busca=e.target.value;$("lNor").innerHTML=listaNormas()}}
+
+/* ---------- Registro diario, Personal, Servicio y Radio ---------- */
+function registrarCambio(accion,detalle){(D.cambios=D.cambios||[]).unshift({cuando:new Date().toISOString(),accion,detalle})}
+function seguro(msg,siguiente){
+  $("confMsg").textContent=msg;$("conf").classList.add("ver");
+  $("confNo").onclick=()=>$("conf").classList.remove("ver");
+  $("confSi").onclick=()=>{$("conf").classList.remove("ver");siguiente()};
+  $("confNo").focus();
+}
+const hhmmDif=(a,b)=>{if(!a||!b)return null;const[x,y]=a.split(":").map(Number),[p,q]=b.split(":").map(Number);let m=p*60+q-(x*60+y);if(m<0)m+=1440;return m};
+const durTxt=m=>m==null?"":Math.floor(m/60)+" h "+String(m%60).padStart(2,"0")+" min";
+const normDom=s=>String(s||"").toUpperCase().replace(/[^A-Z0-9Ñ]/g,"");
+const domValido=d=>/^[A-Z]{3}\d{3}$/.test(d)||/^[A-Z]{2}\d{3}[A-Z]{2}$/.test(d)||/^\d{3}[A-Z]{3}$/.test(d)||/^[A-Z]\d{3}[A-Z]{3}$/.test(d);
+function leerTabla(t){const o={};String(t).split("\n").forEach(l=>{const p=l.indexOf("=");if(p>0)o[l.slice(0,p).trim().toUpperCase()]=l.slice(p+1).trim()});return o}
+function deletreo(dom){
+  const d=normDom(dom),L=leerTabla(D.fonetico),g=[];let let0=[];
+  for(const c of d){if(/\d/.test(c)){if(let0.length){g.push(let0.join(" "));let0=[]}g.push(L[c]||c)}else let0.push(L[c]||c)}
+  if(let0.length)g.push(let0.join(" "));
+  return g.join(", ");
+}
+const nombreP=p=>[p.jer,p.nombre].filter(Boolean).join(" ");
+function antig(p){if(p.ingreso){const e=edadDe(p.ingreso);return e===""?"":e+" años de antigüedad"}return p.antig?p.antig+" años de antigüedad":""}
+function textoEfectivo(p){
+  const l=[nombreP(p)];if(p.legajo)l.push("Legajo "+p.legajo);if(p.dni)l.push("DNI "+p.dni);
+  if(p.nac)l.push("F/N "+fechaAR(p.nac).slice(0,6)+fechaAR(p.nac).slice(8)+" - "+edadDe(p.nac)+" años");
+  if(antig(p))l.push(antig(p));
+  const dom=[p.dom,p.loc].filter(Boolean).join(", ");if(dom)l.push(dom);
+  return l.join("\n");
+}
+let tipoLl="general",tipoForm="general";
+const TIPOS_LL={
+ general:{n:"General",c:[["motivo","Motivo","text"]]},
+ panorama:{n:"Panorama",c:[["envio","Envío","select",["Primer panorama","Ampliación"]],["hecho","Hecho","select",["Robo","Hurto","Homicidio","Lesiones","Otro"]],["victima","Víctima","text"],["lesionados","Lesionados y atención médica","text"],["sustraido","Sustraído","text"],["modalidad","Modalidad (arma, vehículo, escalamiento…)","text"],["autores","Autores: cantidad y descripción","textarea"],["vehAut","Vehículo de los autores","text"],["huida","Dirección de huida","text"],["interviene","Interviene (UFI, fiscal, Científica)","text"],["estado","Estado (escena preservada, búsqueda…)","text"]]},
+ tobillera:{n:"Tobillera",c:[["domic","Persona controlada","sel",()=>D.domic.map(x=>[x.id,(x.nombre||"Sin nombre")+" · DNI "+(x.dni||"-")])],["enDom","¿Estaba en su domicilio?","select",["","Sí","No","No, con permiso laboral"]],["colocado","¿Tenía el dispositivo colocado?","select",["","Sí","No"]],["inf911","Hora de informe al 911","time"],["op911","Operador del 911","text"]]},
+ perimetral:{n:"Perimetral",c:[["medida","Medida","sel",()=>D.perim.map(x=>[x.id,(x.denunciado||"?")+" → "+(x.victima||"?")])],["ambas","¿Estaban ambas partes?","select",["","Sí","No"]],["lugarTipo","Lugar del hecho","select",["","Domicilio de la víctima","Domicilio del denunciado","Lugar neutral"]],["segundo","Quién llegó segundo (lugar neutral)","text"],["trasladado","Quién fue trasladado","text"],["testigos","Testigos","pers"],["fiscal","Fiscal o UFI comunicada","text"],["juzgado","Juzgado comunicado","text"],["horaCom","Hora de comunicación","time"]]},
+ familiar:{n:"Conflicto familiar",c:[["partes","Partes","pers"],["menores","¿Había menores?","select",["","Sí","No"]],["lesiones","Lesiones y atención médica","text"],["medidaV","¿Hay medida judicial vigente?","select",["","Sí","No","No sabe"]],["l144","Se informó la Línea 144","select",["","Sí","No"]]]},
+ equino:{n:"Equino suelto",c:[["cant","Cantidad","num"],["desc","Pelaje y marcas","text"],["riesgo","¿Riesgo para el tránsito?","select",["","Sí","No"]],["retirado","¿Se retiró de la calzada?","select",["","Sí","No"]],["duenio","Dueño","text"],["comunicado","Comunicado a","text"]]},
+ frecuente:{n:"Llamante frecuente",c:[["requirente","Requirente","pers"],["motivo","Motivo","text"],["constata","Se constata","select",["Sin novedad","Con novedad"]]]}
+};
+function camposLlamado(t){return [["aviso","Hora de aviso","time"],["arribo","Hora de arribo","time"],["fin","Hora de fin","time"],["lugar","Lugar","text"],["movil","Móvil","text"],...(TIPOS_LL[t]||TIPOS_LL.general).c,["resultado","Resultado y observaciones","textarea"]]}
+const idsP=s=>String(s||"").split(",").filter(Boolean);
+const persDe=s=>idsP(s).map(i=>D.personas.find(p=>p.id===i)).filter(Boolean);
+const PERI_PASOS=[
+ ["Hacé cesar el riesgo y separá a las partes",""],
+ ["Constatá la medida: vigencia, distancia y si el denunciado fue notificado","Ley 12.569 art. 7"],
+ ["Tomá datos de testigos",""],
+ ["Si corresponde, aprehendé en flagrancia e informale sus derechos","CPP arts. 153 a 155 · Ley 13.482 art. 16"],
+ ["Comunicá de inmediato al fiscal: él califica el hecho, por ejemplo como desobediencia","CPP art. 296 · CP art. 239"],
+ ["Avisá al juzgado que dictó la medida","Ley 12.569 art. 7 bis"],
+ ["Informale a la víctima sus derechos y dale la Línea 144","CPP art. 85"],
+ ["Aplicá el criterio de traslado de tu dependencia. Manda lo que indique la fiscalía","Se edita en Más, Perimetrales"],
+ ["Dejá constancia de si había menores y de lo que dijo cada parte",""]
+];
+GUIAS.splice(4,0,{id:"peri",t:"Incumplimiento de perimetral",p:PERI_PASOS});
+NORMAS.push(
+ ["CP art. 239: desobediencia","Reprime con prisión de 15 días a 1 año a quien desobedezca a un funcionario público en ejercicio legítimo de sus funciones. Si el incumplimiento de una perimetral encuadra ahí se discute en la jurisprudencia: lo califica el fiscal.","https://stabogados.com.ar/penal/codigo-penal/parte-especial/arts-237-238-239-240-241-242-243","perimetral desobediencia incumplimiento restriccion"],
+ ["CPP art. 85: información a la víctima","Desde los primeros momentos de su intervención, la Policía y la fiscalía deben darle a quien alegue ser víctima la información sobre sus derechos.","https://stabogados.com.ar/penal/codigos-procesales/cppba/arts-83-88/","victima derechos informacion perimetral"]);
+function guiaPerimHtml(){return `<details><summary>Qué hacer si hay incumplimiento</summary><div><ol style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px">${PERI_PASOS.map(p=>`<li>${esc(p[0])}${p[1]?`<br><small class="ayuda">${esc(p[1])}</small>`:""}</li>`).join("")}</ol><div class="aviso" style="margin-top:8px">Criterio de traslado: ${esc(D.criterioPerim)}</div></div></details>`}
+function textoLlamado(r){
+  const t=TIPOS_LL[r.tipo]?r.tipo:"general",T=TIPOS_LL[t],v=(l,x)=>x&&String(x).trim()?"\n"+l+": "+String(x).trim():"",d=hhmmDif(r.aviso,r.arribo);
+  let s;
+  if(t==="panorama")s=(r.envio==="Ampliación"?"AMPLIACIÓN DE PANORAMA":"PANORAMA")+" - "+String(r.hecho||"").toUpperCase();
+  else if(t==="tobillera")s="CONTROL DE DISPOSITIVO";
+  else s="LLAMADO"+(t!=="general"?" - "+T.n.toUpperCase():"");
+  s+="\n"+fechaAR(r.fecha)+(r.aviso?" "+r.aviso:"")+(r.lugar?" - "+r.lugar:"")+v("Móvil",r.movil);
+  if(t==="tobillera"){const x=D.domic.find(y=>y.id===r.domic);s+="\nPedido del 911\nPersona: "+(x?(x.nombre||"")+", DNI "+(x.dni||"-"):"[completar]")+(x?v("Domicilio",x.dom):"")+v("En su domicilio",r.enDom)+v("Dispositivo colocado",r.colocado)+v("Informado al 911",r.inf911)+v("Operador del 911",r.op911)}
+  else if(t==="perimetral"){const m=D.perim.find(y=>y.id===r.medida);if(m)s+="\nMedida: "+(m.denunciado||"[denunciado]")+" respecto de "+(m.victima||"[víctima]")+v("Distancia",m.dist?m.dist+" m":"")+v("Juzgado de la medida",m.juzgado)+v("Vence",m.vence?fechaAR(m.vence):"");
+    s+=v("Ambas partes en el lugar",r.ambas)+v("Lugar del hecho",r.lugarTipo)+v("Llegó segundo",r.segundo)+v("Trasladado",r.trasladado)+v("Fiscal o UFI",r.fiscal)+v("Juzgado comunicado",r.juzgado)+v("Hora de comunicación",r.horaCom)}
+  else T.c.forEach(([k,l,tp])=>{if(t==="panorama"&&(k==="envio"||k==="hecho"))return;s+=tp==="pers"?v(l,persDe(r[k]).map(p=>(p.nombre||"Sin nombre")+(p.dni?" (DNI "+p.dni+")":"")).join(", ")):v(l,r[k])});
+  if(r.arribo||r.fin)s+="\nArribo: "+(r.arribo||"-")+" - Fin: "+(r.fin||"-")+(d!=null&&r.aviso&&r.arribo?" - Demora: "+durTxt(d):"");
+  s+=v("Resultado",r.resultado);
+  if(t==="perimetral"){const ts=persDe(r.testigos);if(ts.length)s+="\n\n"+ts.map(p=>textoPersona(p).replace("DATOS DE PERSONA","TESTIGO")).join("\n\n")}
+  return s;
+}
+function infoLlamado(){
+  const el=$("llInfo");if(!el)return;const t=tipoForm,val=id=>{const e=$(id);return e?e.value:""};let h="";
+  if(t==="tobillera"){const x=D.domic.find(y=>y.id===val("rg_domic"));if(!D.domic.length)h=`<p class="ayuda">Cargá los domiciliarios en Más, Domiciliarios.</p>`;else if(x){const av=val("rg_aviso");let p=x.permLugar||x.permDesde?"Permiso laboral: "+[x.permLugar,x.permDias,x.permDesde&&x.permHasta?x.permDesde+" a "+x.permHasta:""].filter(Boolean).join(" · ")+".":"Sin permiso laboral cargado.";
+    if(x.permDesde&&x.permHasta&&av){const den=x.permDesde<=x.permHasta?av>=x.permDesde&&av<=x.permHasta:av>=x.permDesde||av<=x.permHasta;p+=" A las "+av+" está "+(den?"DENTRO":"FUERA")+" del horario del permiso."}h=`<div class="aviso">${esc(p)}</div>`}}
+  if(t==="perimetral"){const m=D.perim.find(y=>y.id===val("rg_medida"));if(!D.perim.length)h=`<p class="ayuda">Cargá las medidas en Más, Perimetrales.</p>`;else if(m){const f=fechaGuardia();h=`<div class="aviso">${esc(!m.vence?"Medida sin fecha de vencimiento cargada.":m.vence<f?"MEDIDA VENCIDA el "+fechaAR(m.vence)+". Confirmá con el juzgado.":"Medida vigente hasta el "+fechaAR(m.vence)+".")}${m.dist?" Distancia: "+esc(m.dist)+" m.":""}</div>`}}
+  if(t==="frecuente"){const ids=idsP(val("rg_requirente"));if(ids.length){const f=fechaGuardia(),n=D.llamados.filter(r=>r.tipo==="frecuente"&&r.id!==eReg.llamados&&nDia(f)-nDia(r.fecha)<=30&&idsP(r.requirente).some(i=>ids.includes(i))).length;h=`<div class="aviso">Llamados anteriores de esta persona en 30 días: ${n}.${n>=3?" Considerá avisar a un familiar o al área de adultos mayores del municipio.":""}</div>`}}
+  if(t==="panorama"){const f=fechaGuardia(),l=D.vendedores.filter(x=>nDia(f)-nDia(x.fecha)<=7&&nDia(f)>=nDia(x.fecha));if(l.length)h=`<details><summary>Vendedores identificados en los últimos 7 días <span class="prog">${l.length}</span></summary><div>${l.slice().reverse().map(x=>`<div class="item"><b>${esc(x.nombre||"Sin nombre")}</b><span class="ayuda">${fechaAR(x.fecha).slice(0,5)} ${esc(x.hora||"")} · ${esc(x.lugar||"")}${x.conducta?" · "+esc(x.conducta):""}${x.acomp?" · "+esc(x.acomp):""}</span></div>`).join("")}</div></details>`}
+  el.innerHTML=h;
+}
+function llamadoBotones(){
+  document.querySelectorAll("[data-lle]").forEach(b=>b.onclick=()=>{const r=D.llamados.find(x=>x.id===b.dataset.lle);r.arribo=horaAhora();guardar();pintar();tostada("Arribo "+r.arribo)});
+  document.querySelectorAll("[data-lfi]").forEach(b=>b.onclick=()=>{const r=D.llamados.find(x=>x.id===b.dataset.lfi);r.fin=horaAhora();guardar();pintar();tostada("Fin "+r.fin)});
+}
+function textoDominio(r){
+  let t="DOMINIO "+normDom(r.dominio)+" - "+(r.modo||"")+"\n"+fechaAR(r.fecha)+" "+(r.hora||"")+(r.lugar?" - "+r.lugar:"");
+  if(r.vehiculo)t+="\nVehículo: "+r.vehiculo;
+  if(r.radicacion)t+="\nRadicación: "+r.radicacion;
+  if(r.radio)t+="\nRadio: "+r.radio+(r.operador?" (operador "+r.operador+")":"");
+  if(r.secuestro==="Sí"){t+="\nSECUESTRO\nMotivo: "+(r.motivoSec||"[completar]")+"\nTestigos: "+(r.testigos||"[completar]")}
+  if(r.obs)t+="\nObservaciones: "+r.obs;
+  return t;
+}
+const REG={
+  llamados:{t:"Llamado",plural:"Llamados",
+    linea:r=>{const T=TIPOS_LL[r.tipo]||TIPOS_LL.general;return (r.aviso||"--:--")+" · "+T.n+(r.tipo==="panorama"&&r.hecho?" "+r.hecho.toLowerCase():"")+(r.motivo?" · "+r.motivo:"")},
+    sub:r=>[r.lugar,r.movil,r.arribo?(r.aviso?"demora "+durTxt(hhmmDif(r.aviso,r.arribo)):""):"sin arribo"].filter(Boolean).join(" · "),
+    alerta:r=>!r.fin?"En curso":(r.tipo==="tobillera"&&(r.enDom==="No"||r.colocado==="No")?"Atención":false),
+    texto:r=>textoLlamado(r),def:()=>({aviso:horaAhora(),envio:"Primer panorama",hecho:"Robo",constata:"Sin novedad"}),
+    get campos(){return camposLlamado(tipoForm)}},
+  personas:{t:"Persona",plural:"Personas",linea:r=>r.nombre||"Sin nombre",sub:r=>["DNI "+(r.dni||"-"),r.hora].filter(Boolean).join(" · "),texto:textoPersona,
+    def:()=>({hora:horaAhora()}),campos:[["nombre","Apellido y nombre","text"],["dni","DNI","num"],["tel","Teléfono","tel"],["nac","Fecha de nacimiento","date"],["dom","Domicilio","text"],["ocu","Ocupación","text"],["lee","Sabe leer y escribir","select",["","Sí","No"]],["hora","Hora de carga","time"],["madre","Madre (opcional)","text"],["madreV","Madre vive","select",["","vive","fallecida"]],["padre","Padre (opcional)","text"],["padreV","Padre vive","select",["","vive","fallecido"]]]},
+  dominios:{t:"Dominio",plural:"Dominios",linea:r=>normDom(r.dominio)+" · "+(r.radio||"Sin respuesta"),sub:r=>[r.hora,r.modo,r.lugar].filter(Boolean).join(" · "),texto:textoDominio,alerta:r=>r.radio&&r.radio!=="Sin novedad",
+    def:()=>({hora:horaAhora(),modo:"En movimiento",secuestro:"No"}),campos:[["dominio","Dominio","text"],["modo","Situación","select",["En movimiento","Parado"]],["hora","Hora","time"],["lugar","Lugar","text"],["vehiculo","Marca, modelo y color","text"],["radicacion","Radicación","text"],["radio","Respuesta por radio","select",["","Sin novedad","Secuestro activo","Otro impedimento"]],["operador","Operador","text"],["secuestro","¿Se secuestra?","select",["No","Sí"]],["motivoSec","Motivo del secuestro","text"],["testigos","Datos de testigos","textarea"],["obs","Observaciones","textarea"]]},
+  personal:{t:"Efectivo",plural:"Personal",todo:true,linea:r=>nombreP(r)||"Sin nombre",sub:r=>["Leg. "+(r.legajo||"-"),"DNI "+(r.dni||"-")].join(" · "),texto:textoEfectivo,
+    def:()=>({}),campos:[["jer","Jerarquía","text"],["nombre","Apellido y nombre","text"],["legajo","Legajo","text"],["dni","DNI","num"],["nac","Fecha de nacimiento","date"],["ingreso","Fecha de ingreso","date"],["antig","Antigüedad en años, si no sabés el ingreso","num"],["dom","Domicilio","text"],["loc","Localidad","text"],["tel","Teléfono","tel"]]}
+};
+const eReg={},qReg={},selPers={};let fReg=null,subR="novedades",subM="turnos";
+function chipPers(k,i){const p=D.personas.find(x=>x.id===i);return `<button type="button" class="chip" data-prq="${k}" data-pid="${i}">${esc(p?p.nombre||"Sin nombre":"Persona borrada")} ✕</button>`}
+function campoHtml(c,v){
+  const[k,l,tp,o]=c,id="rg_"+k,val=esc(v??"");
+  if(tp==="select")return `<label>${l}<select id="${id}" data-k="${k}">${o.map(x=>`<option value="${esc(x)}" ${x===(v??"")?"selected":""}>${esc(x||"Sin dato")}</option>`).join("")}</select></label>`;
+  if(tp==="sel"){const op=o();return `<label>${l}<select id="${id}" data-k="${k}"><option value="">Elegir</option>${op.map(([x,lb])=>`<option value="${esc(x)}" ${x===v?"selected":""}>${esc(lb)}</option>`).join("")}</select></label>`}
+  if(tp==="pers"){const ids=idsP(v);return `<div class="item"><b style="font-size:14px;color:var(--suave)">${l}</b><input type="hidden" id="${id}" data-k="${k}" value="${esc(ids.join(","))}"><div class="fila" id="pc_${k}">${ids.map(i=>chipPers(k,i)).join("")}</div>
+    <label>Agregar de Personas<select id="pa_${k}" data-pradd="${k}"><option value="">Elegir</option>${D.personas.slice().reverse().map(p=>`<option value="${p.id}">${esc(p.nombre||"Sin nombre")} · DNI ${esc(p.dni||"-")}</option>`).join("")}</select></label>
+    <span class="ayuda">Si no está, cargala en Registro, Personas. Podés guardar ahora y sumarla después con Editar.</span></div>`}
+  if(tp==="textarea")return `<label>${l}<textarea id="${id}" data-k="${k}">${val}</textarea></label>`;
+  const t=tp==="num"?`text" inputmode="numeric`:tp==="tel"?`tel" inputmode="tel`:tp;
+  return `<label>${l}<input type="${t}" id="${id}" data-k="${k}" value="${val}" autocomplete="off"></label>`;
+}
+function ayudaDominio(v){
+  const d=normDom(v);if(!d)return `<p class="ayuda">Escribí el dominio para ver cómo pasarlo por radio.</p>`;
+  return `<div class="salida">${esc(deletreo(d))}</div>${domValido(d)?"":`<p class="ayuda" style="color:var(--alerta)">Revisá el dominio: el formato no parece válido.</p>`}`;
+}
+const fotoDB=()=>new Promise((ok,no)=>{const q=indexedDB.open("guardia-pba-fotos",1);q.onupgradeneeded=()=>q.result.createObjectStore("fotos");q.onsuccess=()=>ok(q.result);q.onerror=()=>no(q.error)});
+async function fotoGuardar(id,dataUrl){if(!claveLocal)throw new Error("App bloqueada");const iv=crypto.getRandomValues(new Uint8Array(12)),ct=await crypto.subtle.encrypt({name:"AES-GCM",iv},claveLocal,new TextEncoder().encode(dataUrl));const db=await fotoDB();await new Promise((ok,no)=>{const t=db.transaction("fotos","readwrite");t.objectStore("fotos").put({enc:"aes-gcm-v1",iv:b64(iv),data:b64(ct)},id);t.oncomplete=ok;t.onerror=()=>no(t.error)})}
+async function fotoLeer(id){const db=await fotoDB();const v=await new Promise((ok,no)=>{const q=db.transaction("fotos").objectStore("fotos").get(id);q.onsuccess=()=>ok(q.result);q.onerror=()=>no(q.error)});if(!v)return null;if(typeof v==="string")return v;if(v.enc!=="aes-gcm-v1"||!claveLocal)throw new Error("Foto no disponible");const raw=await crypto.subtle.decrypt({name:"AES-GCM",iv:deB64(v.iv)},claveLocal,deB64(v.data));return new TextDecoder().decode(raw)}
+async function fotoBorrar(id){const db=await fotoDB();db.transaction("fotos","readwrite").objectStore("fotos").delete(id)}
+async function fotoTodas(){const db=await fotoDB();return new Promise((ok,no)=>{const q=db.transaction("fotos").objectStore("fotos").getAll();q.onsuccess=()=>ok(q.result||[]);q.onerror=()=>no(q.error)})}
+async function fotoClaves(){const db=await fotoDB();return new Promise((ok,no)=>{const q=db.transaction("fotos").objectStore("fotos").getAllKeys();q.onsuccess=()=>ok(q.result||[]);q.onerror=()=>no(q.error)})}
+async function fotoRestaurar(claves,valores){const db=await fotoDB();await new Promise((ok,no)=>{const tx=db.transaction("fotos","readwrite"),st=tx.objectStore("fotos");st.clear();claves.forEach((k,i)=>st.put(valores[i],k));tx.oncomplete=ok;tx.onerror=()=>no(tx.error)})}
+function achicar(file){return new Promise((ok,no)=>{const u=URL.createObjectURL(file),i=new Image();i.onload=()=>{const e=Math.min(1,1000/Math.max(i.width,i.height)),c=document.createElement("canvas");c.width=i.width*e;c.height=i.height*e;c.getContext("2d").drawImage(i,0,0,c.width,c.height);URL.revokeObjectURL(u);ok(c.toDataURL("image/jpeg",.7))};i.onerror=no;i.src=u})}
+function vistaReg(k){
+  const C=REG[k],ed=eReg[k]&&D[k].find(x=>x.id===eReg[k]);if(k==="llamados")tipoForm=ed?(TIPOS_LL[ed.tipo]?ed.tipo:"general"):tipoLl;
+  const v=ed||C.def(),q=plano(qReg[k]||""),al=r=>{const a=C.alerta&&C.alerta(r);return a?(a===true?"Atención":a):""};
+  if(!fReg)fReg=fechaGuardia();const lista=D[k].filter(r=>(C.todo||r.fecha===fReg)&&(!q||plano(JSON.stringify(r)+" "+C.texto(r)).includes(q))).slice().reverse();
+  return `<form class="panel" id="fReg"><h2>${ed?"Editar":"Nuevo"}: ${esc(k==="llamados"?TIPOS_LL[tipoForm].n.toLowerCase():C.t.toLowerCase())}</h2>
+    ${k==="llamados"&&!ed?`<div class="fila" role="group" aria-label="Tipo de llamado">${Object.entries(TIPOS_LL).map(([t,x])=>`<button type="button" class="chip" data-tll="${t}" aria-pressed="${t===tipoForm}">${esc(x.n)}</button>`).join("")}</div>`:""}
+    ${C.campos.map(c=>campoHtml(c,v[c[0]])+(k==="dominios"&&c[0]==="dominio"?`<div id="domAyuda"></div>`:"")+(k==="vendedores"&&c[0]==="dni"?`<div id="vendAviso"></div>`:"")).join("")}
+    ${k==="llamados"?`<div id="llInfo"></div>${tipoForm==="perimetral"?guiaPerimHtml():""}`:""}
+    ${k==="dominios"?`<a class="btn" id="dnrpa" href="https://www.dnrpa.gov.ar/portal_dnrpa/radicacion2.php" target="_blank" rel="noopener">Copiar dominio y abrir radicación DNRPA</a><label>Foto (opcional)<input type="file" id="domFoto" accept="image/*"></label>`:""}
+    <div class="fila"><button class="btn prim">${ed?"Guardar cambios":"Guardar"}</button>${ed?`<button type="button" class="btn" id="regCan">Cancelar edición</button>`:""}</div></form>
+  <section class="panel"><h2>${C.plural} · ${lista.length}</h2>
+    <div class="dos">${C.todo?"":`<label>Día de guardia<input type="date" id="fReg0" value="${fReg}"></label>`}<label>Buscar<input type="search" id="qReg" value="${esc(qReg[k]||"")}" autocomplete="off"></label></div>
+    <div>${lista.map(r=>`<article class="flota" style="grid-template-columns:1fr"><div>${k==="personal"?`<label class="check" style="border:0;padding:0"><input type="checkbox" id="sp_${r.id}" data-sp="${r.id}" ${selPers[r.id]?"checked":""}><span><b style="font:inherit;font-weight:700">${esc(C.linea(r))}</b></span></label>`:`<b style="font-size:20px">${esc(C.linea(r))}</b>`}
+      ${al(r)?`<span class="pill">${esc(al(r))}</span>`:""}<div class="ayuda">${esc(C.sub(r))}</div>${r.foto?`<img data-foto="${r.id}" alt="Foto del dominio" style="max-width:100%;border-radius:6px;margin-top:6px">`:""}</div>
+      <div class="fila">${k==="llamados"?(!r.arribo?`<button class="btn chico prim" data-lle="${r.id}">Llegué</button>`:!r.fin?`<button class="btn chico prim" data-lfi="${r.id}">Terminé</button>`:""):""}<a class="btn chico" href="${esc(urlWA(C.texto(r)))}" target="_blank" rel="noopener">WhatsApp</a><button class="btn chico" data-ed="${r.id}">Editar</button><button class="btn chico peligro" data-bo="${r.id}">Borrar</button></div></article>`).join("")||`<p class="ayuda">No hay registros${C.todo?"":" ese día"}.</p>`}</div>
+    ${lista.length&&!C.todo?`<div class="fila">${botonWA("waDia",lista.slice().reverse().map(C.texto).join("\n\n"))}<button class="btn" id="copDia">Copiar el día</button></div>`:""}
+    ${k==="personal"?`<div class="fila"><a class="btn prim" id="waSel" href="#">Enviar seleccionados</a><button class="btn" id="copSel">Copiar seleccionados</button></div>`:""}
+  </section>`;
+}
+function atarReg(k){
+  const C=REG[k];
+  $("fReg").onsubmit=async e=>{e.preventDefault();const r={};document.querySelectorAll("#fReg [data-k]").forEach(i=>r[i.dataset.k]=i.value.trim());
+    if(k==="dominios"){r.dominio=normDom(r.dominio);if(!r.dominio){tostada("Cargá el dominio");return}}
+    if(k==="llamados"&&!eReg[k])r.tipo=tipoLl;
+    let reg;if(eReg[k]){reg=D[k].find(x=>x.id===eReg[k]);Object.assign(reg,r);registrarCambio("Edición de "+C.t.toLowerCase(),C.linea(reg));eReg[k]=null}
+    else{reg=Object.assign({id:nuevoId(),fecha:fechaGuardia()},r);D[k].push(reg);fReg=reg.fecha}
+    const ft=$("domFoto");if(ft&&ft.files[0]){try{await fotoGuardar(reg.id,await achicar(ft.files[0]));reg.foto=true}catch(x){tostada("No se pudo guardar la foto")}}
+    guardar();pintar();$("main").scrollTop=0;tostada(C.t+" guardado")};
+  const c=$("regCan");if(c)c.onclick=()=>{eReg[k]=null;pintar()};
+  document.querySelectorAll("[data-ed]").forEach(b=>b.onclick=()=>{eReg[k]=b.dataset.ed;pintar();$("main").scrollTop=0});
+  document.querySelectorAll("[data-bo]").forEach(b=>b.onclick=()=>{const r=D[k].find(x=>x.id===b.dataset.bo);seguro("¿Estás seguro de borrar "+C.linea(r)+"? No se puede deshacer.",()=>{D[k]=D[k].filter(x=>x!==r);if(r.foto)fotoBorrar(r.id).catch(()=>{});registrarCambio("Borrado de "+C.t.toLowerCase(),C.linea(r));guardar();pintar();tostada("Borrado")})});
+  const f0=$("fReg0");if(f0)f0.onchange=()=>{fReg=f0.value||fechaGuardia();pintar()};
+  $("qReg").oninput=e=>{qReg[k]=e.target.value;const p=e.target.selectionStart;pintar();const n=$("qReg");n.focus();n.setSelectionRange(p,p)};
+  const cd=$("copDia");if(cd)cd.onclick=()=>copiar(D[k].filter(r=>r.fecha===fReg).map(C.texto).join("\n\n"),"Copiado");
+  document.querySelectorAll("[data-pradd]").forEach(s=>s.onchange=()=>{if(!s.value)return;const k2=s.dataset.pradd,h=$("rg_"+k2),ids=idsP(h.value);if(!ids.includes(s.value)){ids.push(s.value);h.value=ids.join(",");$("pc_"+k2).insertAdjacentHTML("beforeend",chipPers(k2,s.value))}s.value="";infoLlamado()});
+  $("fReg").addEventListener("click",e=>{const b=e.target.closest("[data-prq]");if(!b)return;const h=$("rg_"+b.dataset.prq);h.value=idsP(h.value).filter(x=>x!==b.dataset.pid).join(",");b.remove();infoLlamado()});
+  if(k==="llamados"){
+    document.querySelectorAll("[data-tll]").forEach(b=>b.onclick=()=>{tipoLl=b.dataset.tll;pintar()});
+    llamadoBotones();
+    ["rg_domic","rg_medida","rg_aviso"].forEach(id=>{const e=$(id);if(e)e.addEventListener("change",infoLlamado)});infoLlamado();
+  }
+  if(k==="vendedores"){
+    const dn=$("rg_dni"),av=()=>{const prev=identsDe({dni:dn.value,nombre:$("rg_nombre").value},eReg[k]);$("vendAviso").innerHTML=prev.length?`<div class="aviso">${esc(resumenVend(prev))}</div>`:""};
+    dn.addEventListener("change",()=>{const prev=identsDe({dni:dn.value},eReg[k]);if(prev.length){const u=prev[prev.length-1];["nombre","nac","dom","loc","tel","vende","zonas"].forEach(f=>{const i=$("rg_"+f);if(i&&!i.value&&u[f])i.value=u[f]})}av()});
+    $("rg_nombre").addEventListener("change",av);av();
+  }
+  if(k==="dominios"){
+    const i=$("rg_dominio"),ay=()=>{$("domAyuda").innerHTML=ayudaDominio(i.value)};i.oninput=ay;ay();
+    $("dnrpa").onclick=()=>{const d=normDom(i.value);if(d&&navigator.clipboard)navigator.clipboard.writeText(d).catch(()=>{})};
+    document.querySelectorAll("[data-foto]").forEach(m=>fotoLeer(m.dataset.foto).then(u=>{if(u)m.src=u}).catch(()=>{}));
+  }
+  if(k==="personal"){
+    const act=()=>{$("waSel").href=urlWA(textoSel());$("waSel").target="_blank";$("waSel").rel="noopener"};act();
+    document.querySelectorAll("[data-sp]").forEach(x=>x.onchange=()=>{selPers[x.dataset.sp]=x.checked;act()});
+    $("copSel").onclick=()=>{const t=textoSel();t?copiar(t,"Datos copiados"):tostada("Marcá al menos un efectivo")};
+  }
+}
+function textoSel(){return D.personal.filter(p=>selPers[p.id]).map(textoEfectivo).join("\n\n")}
+function subnav(items,act,attr){return `<div class="fila" role="group" aria-label="Sección">${items.map(([k,l])=>`<button class="chip" ${attr}="${k}" aria-pressed="${k===act}">${l}</button>`).join("")}</div>`}
+function vistaRegistro(){
+  const it=[["novedades","Novedades"],["llamados","Llamados"],["personas","Personas"],["dominios","Dominios"],["rondines","Rondines"],["vendedores","Vendedores"]];
+  return `<div class="vista">${subnav(it,subR,"data-sr")}${subR==="novedades"?vistaNovedades():subR==="rondines"?vistaRondines():vistaReg(subR)}</div>`;
+}
+function atarRegistro(){document.querySelectorAll("[data-sr]").forEach(b=>b.onclick=()=>{subR=b.dataset.sr;pintar()});subR==="novedades"?atarNovedades():subR==="rondines"?atarRondines():atarReg(subR)}
+
+function efectivosServicio(S){const n=new Set();Object.values(S.filas||{}).forEach(a=>(a||[]).forEach(x=>n.add(plano(x.n))));return n.size}
+function datosDesc(S){
+  const ds=S.desc=S.desc||{};const N=ds.n!==undefined&&ds.n!==""?+ds.n:efectivosServicio(S),m=ds.mov!==undefined&&ds.mov!==""?+ds.mov:S.rows.length,g=ds.guar!==undefined&&ds.guar!==""?+ds.guar:1;
+  const cus=(ds.cus||[]).map(c=>({...c,min:hhmmDif(c.desde,c.hasta)||0}));
+  const fijos=m*2+g,cubrir=fijos*1440+cus.reduce((s,c)=>s+c.min,0),total=N*1440,libre=total-cubrir;
+  const por=N>0&&libre>0?Math.floor(libre/N/15)*15:0;
+  const partes=Math.max(1,+ds.partes||1),porParte=Math.floor(por/partes/15)*15;
+  return{N,m,g,cus,fijos,cubrir,libre,por,partes,porParte,aLaVez:N-fijos,aLaVezCus:N-fijos-cus.length};
+}
+const hCus=c=>hs(c.desde)+" a "+hs(c.hasta);
+function textoDesc(S){const x=datosDesc(S);
+  let t="DESCANSOS "+fechaAR(S.fecha)+"\nEfectivos: "+x.N+" (sin contar al ayudante de guardia)\nA cubrir las 24 h: "+x.m+" móvil"+(x.m===1?"":"es")+" ("+x.m*2+" efectivos) y guardia ("+x.g+")";
+  x.cus.forEach(c=>{t+="\nCustodia/operativo "+hCus(c)+(c.lugar?" - "+c.lugar:"")+" - "+(c.veh==="Vehículo particular"?"vehículo particular":"móvil policial"+(c.movil?" "+c.movil:""))+(c.ef?" - "+c.ef:"")});
+  t+=x.por>0?"\n\nDescanso por efectivo: "+durTxt(x.por)+" (todos bajan, también los que relevan)"+(x.partes>1?"\nEn "+x.partes+" bajadas de "+durTxt(x.porParte)+(x.partes===2?": una de día y otra de noche":": repartidas en el día y la noche"):"")+"\nPueden bajar de a "+x.aLaVez+" a la vez"+(x.cus.length?" (de a "+Math.max(0,x.aLaVez-1)+" durante cada custodia)":""):"\n\nNo alcanza el personal para bajar.";
+  return t;
+}
+function vistaDesc(S){const x=datosDesc(S),ds=S.desc;
+  return `<section class="panel"><h2>Descansos</h2><p class="ayuda">Calcula cuánto puede bajar cada uno en las 24 h, cubriendo siempre 2 efectivos por móvil y la guardia. Bajan todos, también los que relevan: cada uno el mismo tiempo, mientras otro cubre su puesto. El ayudante de guardia no entra en la cuenta.</p>
+  <div class="tres"><label>Efectivos<input type="number" min="0" inputmode="numeric" id="dsN" data-ds="n" value="${esc(ds.n??"")}" placeholder="${efectivosServicio(S)}"></label><label>Móviles<input type="number" min="0" inputmode="numeric" id="dsM" data-ds="mov" value="${esc(ds.mov??"")}" placeholder="${S.rows.length}"></label><label>Guardia<input type="number" min="0" inputmode="numeric" id="dsG" data-ds="guar" value="${esc(ds.guar??"")}" placeholder="1"></label></div>
+  <p class="ayuda">Vacíos, se toman del servicio armado arriba.</p>
+  <label>Bajadas por efectivo<select id="dsP" data-ds="partes">${[["1","1, de corrido"],["2","2: mitad de día y mitad de noche"],["3","3 partes"]].map(([v,l])=>`<option value="${v}" ${String(x.partes)===v?"selected":""}>${l}</option>`).join("")}</select></label>
+  <div><b>Custodias y operativos</b>${x.cus.map((c,i)=>`<div class="tel" style="grid-template-columns:1fr auto"><span>${esc(hCus(c))} · ${durTxt(c.min)}<br><span class="ayuda">${esc([c.lugar,c.veh==="Vehículo particular"?"Vehículo particular":"Móvil policial"+(c.movil?" "+c.movil:""),c.ef].filter(Boolean).join(" · "))}</span></span><button class="btn chico peligro" data-dcb="${i}">Quitar</button></div>`).join("")||`<p class="ayuda">Ninguna cargada.</p>`}</div>
+  <div class="dos"><label>Desde<input type="time" id="cuD"></label><label>Hasta<input type="time" id="cuH"></label></div>
+  <div class="dos"><label>Lugar o motivo<input id="cuL" autocomplete="off"></label><label>Vehículo<select id="cuV"><option>Móvil policial</option><option>Vehículo particular</option></select></label></div>
+  <div class="dos"><label>N° de móvil (si va en móvil)<input id="cuM" inputmode="decimal" autocomplete="off"></label><label>Efectivo (opcional)<input id="cuE" autocomplete="off"></label></div>
+  <button class="btn" id="cuOk">Agregar custodia u operativo</button>
+  ${x.N>0?(x.por>0?`<div class="tiles"><div class="tile"><strong>${Math.floor(x.por/60)}h ${String(x.por%60).padStart(2,"0")}m</strong><span>por efectivo${x.partes>1?" · "+x.partes+" de "+durTxt(x.porParte):""}</span></div><div class="tile"><strong>${x.aLaVez}</strong><span>bajan a la vez</span></div><div class="tile"><strong>${x.N}</strong><span>efectivos</span></div></div>${x.cus.length&&x.aLaVez-1<=0?`<div class="aviso">Durante las custodias no queda nadie para bajar.</div>`:""}`:`<div class="aviso">No alcanza el personal: hacen falta ${x.fijos} efectivos fijos${x.cus.length?" más las custodias":""} y hay ${x.N}.</div>`):`<p class="ayuda">Cargá el servicio o la cantidad de efectivos.</p>`}
+  <div class="salida">${esc(textoDesc(S))}</div><div class="fila">${botonWA("waDs",textoDesc(S))}<button class="btn" id="copDs">Copiar</button></div></section>`;
+}
+function atarDesc(S){
+  document.querySelectorAll("[data-ds]").forEach(i=>i.onchange=()=>{S.desc[i.dataset.ds]=i.value;guardar();pintar()});
+  document.querySelectorAll("[data-dcb]").forEach(b=>b.onclick=()=>{S.desc.cus.splice(+b.dataset.dcb,1);guardar();pintar()});
+  $("cuOk").onclick=()=>{const d=$("cuD").value,h=$("cuH").value;if(!d||!h){tostada("Cargá desde y hasta");return}(S.desc.cus=S.desc.cus||[]).push({desde:d,hasta:h,lugar:$("cuL").value.trim(),veh:$("cuV").value,movil:$("cuM").value.trim(),ef:$("cuE").value.trim()});guardar();pintar();tostada("Custodia agregada")};
+  $("copDs").onclick=()=>copiar(textoDesc(S),"Descansos copiados");
+}
+let cuadNueva=null;
+function asegurarServicio(){
+  const S=D.servicio;S.filas=S.filas||{};
+  if(!S.rows){S.rows=D.flota.filter(m=>m.num).map(m=>{const id="r_"+m.id;if(S.filas["m_"+m.id]){S.filas[id]=S.filas["m_"+m.id];delete S.filas["m_"+m.id]}return{id,movil:m.num,cuad:/cuadr/i.test(m.puesto)?m.puesto:""}})}
+  return S;
+}
+const etiquetaMovil=r=>"Móvil "+(r.movil||"[número]")+(r.cuad?" ("+r.cuad+")":"");
+function filasServicio(){const S=asegurarServicio();return [...S.rows.map(r=>[r.id,etiquetaMovil(r)]),["guardia","Guardia"],["disp","Disponible/s"]]}
+function textoServicio(){
+  const S=asegurarServicio(),l=filasServicio().filter(([k])=>(S.filas[k]||[]).length).map(([k,t])=>t+": "+S.filas[k].map(x=>x.n).join(", "));
+  return "SERVICIO "+fechaAR(S.fecha)+"\n\n"+(l.join("\n\n")||"[sin asignar]");
+}
+function bloqueAsignar(k){
+  const a=D.servicio.filas[k]||[],dat=a.map(x=>D.personal.find(p=>p.id===x.pid)).filter(Boolean);
+  return `<div class="fila">${a.map((x,i)=>`<button class="chip" data-qu="${k}" data-i="${i}" aria-label="Quitar ${esc(x.n)}">${esc(x.n)} ✕</button>`).join("")}</div>
+    <div class="dos"><label>Elegir de Personal<select id="sel_${k}" data-sa="${k}"><option value="">Elegir</option>${D.personal.map(p=>`<option value="${p.id}">${esc(nombreP(p))}</option>`).join("")}</select></label><label>O escribir<input id="txt_${k}" data-st="${k}" autocomplete="off" placeholder="Nombre y tocá fuera"></label></div>
+    ${dat.length?`<a class="btn chico" href="${esc(urlWA(dat.map(textoEfectivo).join("\n\n")))}" target="_blank" rel="noopener">Enviar datos de la dotación</a>`:""}`;
+}
+function vistaServicio(){
+  const S=asegurarServicio();
+  return `<div class="vista">
+  <section class="panel"><h2>Servicio del día</h2><label>Fecha<input type="date" id="sFecha" value="${esc(S.fecha)}"></label>
+  <datalist id="dlMov">${D.flota.filter(m=>m.num).map(m=>`<option value="${esc(m.num)}">`).join("")}</datalist>
+  ${S.rows.map(r=>{const enFlota=!r.movil||D.flota.some(m=>m.num===r.movil);return `<div class="item"><b style="font:700 21px var(--display)">${esc(etiquetaMovil(r))}</b>
+    <div class="dos"><label>Móvil<input id="smv_${r.id}" data-smv="${r.id}" list="dlMov" inputmode="decimal" value="${esc(r.movil)}" autocomplete="off"></label>
+    <label>Cubre<select id="scu_${r.id}" data-scu="${r.id}"><option value="">Sin asignar</option>${D.cuadriculas.map(c=>`<option ${c===r.cuad?"selected":""}>${esc(c)}</option>`).join("")}<option value="__nueva">Agregar otra…</option></select></label></div>
+    ${cuadNueva===r.id?`<div class="dos"><label>Nueva cuadrícula o zona<input id="cnN" autocomplete="off"></label><div style="display:flex;align-items:flex-end"><button class="btn prim" id="cnOk" style="width:100%">Agregar</button></div></div>`:""}
+    ${enFlota?"":`<p class="ayuda">El móvil ${esc(r.movil)} no está en tu flota. <button class="btn chico" data-sfl="${r.id}">Sumarlo a Móviles</button></p>`}
+    ${bloqueAsignar(r.id)}
+    <button class="btn chico peligro" data-srm="${r.id}">Quitar este móvil del servicio</button></div>`}).join("")}
+  <button class="btn" id="sAddMov">Agregar móvil (refuerzo, zona céntrica…)</button>
+  ${[["guardia","Guardia"],["disp","Disponible/s"]].map(([k,t])=>`<div class="item"><b style="font:700 21px var(--display)">${t}</b>${bloqueAsignar(k)}</div>`).join("")}
+  </section>
+  ${vistaDesc(S)}
+  <section class="panel"><h2>Texto para el grupo</h2><div class="salida">${esc(textoServicio())}</div>
+  <div class="fila">${botonWA("waServ",textoServicio())}<button class="btn" id="copServ">Copiar</button><button class="btn" id="guardarServ">Guardar en el registro</button><button class="btn peligro" id="limpServ">Vaciar</button></div></section>
+  <details><summary>Servicios guardados <span class="prog">${D.servicios.length}</span></summary><div>${D.servicios.map((s,i)=>`<div class="tel" style="grid-template-columns:1fr auto auto;gap:6px"><span>${fechaAR(s.fecha)}</span><button class="btn chico" data-su="${i}">Usar</button><button class="btn chico peligro" data-sb="${i}">Borrar</button></div>`).join("")||`<p class="ayuda">Todavía no guardaste ninguno.</p>`}</div></details>
+  <details><summary>Lista de cuadrículas y zonas</summary><div class="vista" style="padding-top:0"><label>Una por línea<textarea id="cuEd" rows="5">${esc(D.cuadriculas.join("\n"))}</textarea></label><button class="btn" id="cuOk">Guardar lista</button></div></details>
+  </div>`;
+}
+function atarServicio(){
+  const S=asegurarServicio(),sum=(k,x)=>{(S.filas[k]=S.filas[k]||[]).push(x);guardar();pintar()},row=id=>S.rows.find(r=>r.id===id);
+  $("sFecha").onchange=e=>{S.fecha=e.target.value;guardar();pintar()};
+  document.querySelectorAll("[data-sa]").forEach(s=>s.onchange=()=>{const p=D.personal.find(x=>x.id===s.value);if(p)sum(s.dataset.sa,{n:nombreP(p),pid:p.id})});
+  document.querySelectorAll("[data-st]").forEach(i=>i.onkeydown=e=>{if(e.key==="Enter"&&i.value.trim()){e.preventDefault();sum(i.dataset.st,{n:i.value.trim()})}});
+  document.querySelectorAll("[data-st]").forEach(i=>i.onchange=()=>{if(i.value.trim())sum(i.dataset.st,{n:i.value.trim()})});
+  document.querySelectorAll("[data-qu]").forEach(b=>b.onclick=()=>{S.filas[b.dataset.qu].splice(+b.dataset.i,1);guardar();pintar()});
+  document.querySelectorAll("[data-smv]").forEach(i=>i.onchange=()=>{row(i.dataset.smv).movil=i.value.trim();guardar();pintar()});
+  document.querySelectorAll("[data-scu]").forEach(s=>s.onchange=()=>{if(s.value==="__nueva"){cuadNueva=s.dataset.scu;pintar();const n=$("cnN");if(n)n.focus();return}cuadNueva=null;row(s.dataset.scu).cuad=s.value;guardar();pintar()});
+  const cn=$("cnOk");if(cn)cn.onclick=()=>{const v=$("cnN").value.trim();if(!v){tostada("Escribí el nombre");return}if(!D.cuadriculas.includes(v))D.cuadriculas.push(v);row(cuadNueva).cuad=v;cuadNueva=null;guardar();pintar()};
+  document.querySelectorAll("[data-sfl]").forEach(b=>b.onclick=()=>{const r=row(b.dataset.sfl);D.flota.push({id:nuevoId(),puesto:r.cuad||"Refuerzo",num:r.movil,desde:hoyISO()});guardar();pintar();tostada("Móvil sumado a la flota")});
+  document.querySelectorAll("[data-srm]").forEach(b=>b.onclick=()=>seguro("¿Estás seguro de quitar este móvil del servicio? Se quita también su dotación.",()=>{S.rows=S.rows.filter(r=>r.id!==b.dataset.srm);delete S.filas[b.dataset.srm];guardar();pintar()}));
+  $("sAddMov").onclick=()=>{S.rows.push({id:nuevoId(),movil:"",cuad:""});guardar();pintar()};
+  $("cuOk").onclick=()=>{const l=$("cuEd").value.split("\n").map(x=>x.trim()).filter(Boolean);if(l.length)D.cuadriculas=l;guardar();pintar();tostada("Lista guardada")};
+  atarDesc(S);
+  $("copServ").onclick=()=>copiar(textoServicio(),"Servicio copiado");
+  $("guardarServ").onclick=()=>{D.servicios=D.servicios.filter(s=>s.fecha!==S.fecha);D.servicios.unshift(JSON.parse(JSON.stringify(S)));guardar();pintar();tostada("Servicio guardado")};
+  $("limpServ").onclick=()=>seguro("¿Estás seguro de vaciar el servicio que estás armando?",()=>{D.servicio={fecha:fechaGuardia(),filas:{}};guardar();pintar()});
+  document.querySelectorAll("[data-su]").forEach(b=>b.onclick=()=>{D.servicio=JSON.parse(JSON.stringify(D.servicios[+b.dataset.su]));D.servicio.fecha=fechaGuardia();guardar();pintar();tostada("Servicio cargado para hoy")});
+  document.querySelectorAll("[data-sb]").forEach(b=>b.onclick=()=>seguro("¿Estás seguro de borrar este servicio?",()=>{const s=D.servicios.splice(+b.dataset.sb,1)[0];registrarCambio("Borrado de servicio",fechaAR(s.fecha));guardar();pintar()}));
+}
+function vistaRadio(){
+  return `<div class="vista"><section class="panel"><h2>Deletrear dominio</h2><label>Dominio<input id="dlt" autocomplete="off"></label><div id="dltS"></div></section>
+  <section class="panel"><h2>Códigos Q y corto</h2><div>${D.codigos.split("\n").filter(Boolean).map(l=>{const p=l.indexOf("=");return `<div class="tel" style="grid-template-columns:72px 1fr"><b>${esc(l.slice(0,p).trim())}</b><span>${esc(l.slice(p+1).trim())}</span></div>`}).join("")}</div></section>
+  <details><summary>Editar códigos</summary><div class="vista" style="padding-top:0"><label>Fonético: letra=palabra<textarea id="edFon" rows="10">${esc(D.fonetico)}</textarea></label><label>Códigos: código=significado<textarea id="edCod" rows="10">${esc(D.codigos)}</textarea></label><button class="btn prim" id="edOk">Guardar códigos</button></div></details></div>`;
+}
+function atarRadio(){
+  const i=$("dlt");i.oninput=()=>{$("dltS").innerHTML=ayudaDominio(i.value)};i.oninput();
+  $("edOk").onclick=()=>{D.fonetico=$("edFon").value;D.codigos=$("edCod").value;guardar();pintar();tostada("Códigos guardados")};
+}
+function vistaCambios(){
+  return `<div class="vista"><section class="panel"><h2>Historial de cambios</h2><div>${(D.cambios||[]).slice(0,100).map(c=>`<div class="flota" style="grid-template-columns:1fr"><div><b style="font:700 16px var(--body)">${esc(c.accion)}</b><div class="ayuda">${esc(c.detalle)} · ${new Date(c.cuando).toLocaleString("es-AR")}</div></div></div>`).join("")||`<p class="ayuda">Todavía no hay ediciones ni borrados.</p>`}</div></section></div>`;
+}
+const MAS=[["parte","Parte",vistaParte,atarParte],["yo","Mis datos",vistaYo,atarYo],["turnos","Turnos",vistaTurnos,atarTurnos],["personal","Personal",()=>`<div class="vista">${vistaReg("personal")}</div>`,()=>atarReg("personal")],["domic","Domiciliarios",()=>vistaFicha("domic"),()=>atarReg("domic")],["perim","Perimetrales",vistaPerim,atarPerim],["radio","Radio",vistaRadio,atarRadio],["guia","Guía",vistaGuia,atarGuia],["normas","Normas",vistaNormas,atarNormas],["cambios","Cambios",vistaCambios,()=>{}]];
+function vistaMas(){const M=MAS.find(x=>x[0]===subM);return `<div class="vista">${subnav(MAS.map(x=>[x[0],x[1]]),subM,"data-sm")}${M[2]()}</div>`}
+function atarMas(){document.querySelectorAll("[data-sm]").forEach(b=>b.onclick=()=>{subM=b.dataset.sm;pintar()});MAS.find(x=>x[0]===subM)[3]()}
+
+function VALORES_INI(){return [{id:"v26a",grupo:"Bancos",valor:8166.10,desde:"2026-11-01",cat:"Categoría 2"},{id:"v26b",grupo:"Casa de la Provincia",valor:5444.10,desde:"2026-11-01",cat:"Categorías 1 y 4"},{id:"v26c",grupo:"Cancha",valor:14699.00,desde:"2026-11-01",cat:"Categoría 5"},{id:"v26d",grupo:"ANSES",valor:8166.10,desde:"2026-11-01",cat:"Categoría 2"}]}
+const yoTxt=()=>{const y=D.yo||{};return [y.jer,y.nombre].filter(Boolean).join(" ")+(y.legajo?", Leg. "+y.legajo:"")};
+function vistaYo(){const y=D.yo||{};return `<div class="vista"><form class="panel" id="fYo"><h2>Mis datos</h2><p class="ayuda">Se usan como responsable en la rendición de adicionales.</p>
+  <div class="dos"><label>Jerarquía<input id="yoJ" value="${esc(y.jer||"")}" autocomplete="off"></label><label>Legajo<input id="yoL" value="${esc(y.legajo||"")}" autocomplete="off"></label></div>
+  <label>Apellido y nombre<input id="yoN" value="${esc(y.nombre||"")}" autocomplete="off"></label><button class="btn prim">Guardar</button></form>
+  <section class="panel"><h2>Acerca de Guardia PBA</h2><p style="margin:0">Creada por Subtte. Bogado Matías Ezequiel, Leg. 186.063.</p><p class="ayuda">Herramienta personal de apoyo. No reemplaza actas, libros ni sistemas oficiales.</p></section>
+  ${(()=>{const act=huellaValida(datosLegado);return `<section class="panel"><h2>Huella</h2><p class="ayuda" id="hEstado">${act?"Activada en este teléfono.":"Desactivada."} La contraseña sirve siempre. Ojo: quien sepa el PIN de desbloqueo del teléfono también puede usarlo en lugar de la huella.</p><div class="fila"><button class="btn prim" id="hAct" type="button">${act?"Volver a activar":"Activar huella"}</button>${act?`<button class="btn peligro" id="hDes" type="button">Desactivar</button>`:""}</div></section>`})()}</div>`}
+function atarYo(){
+  $("hAct").onclick=async()=>{$("hAct").disabled=true;$("hEstado").textContent="Seguí las instrucciones del teléfono…";try{await activarHuella();tostada("Huella activada");pintar()}catch(e){$("hEstado").textContent=errHuella(e)}finally{const b=$("hAct");if(b)b.disabled=false}};
+  const hd=$("hDes");if(hd)hd.onclick=()=>seguro("¿Estás seguro de desactivar la huella? Vas a entrar solo con la contraseña.",()=>{localStorage.removeItem(CLAVE_HUELLA);pintar();tostada("Huella desactivada")});
+$("fYo").onsubmit=e=>{e.preventDefault();D.yo={jer:$("yoJ").value.trim(),nombre:$("yoN").value.trim(),legajo:$("yoL").value.trim()};guardar();tostada("Datos guardados")}}
+const DIAS=[[1,"L"],[2,"M"],[3,"Mi"],[4,"J"],[5,"V"],[6,"S"],[0,"D"]];
+const diasDe=o=>Array.isArray(o.dias)?o.dias:(["bn","bp","an"].includes(o.id)?[1,2,3,4,5]:[0,1,2,3,4,5,6]);
+const cierreDe=(o,f)=>D.cierres.find(c=>c.fecha===f&&c.objs.includes(o.id));
+function motivoCerrado(o,f){const c=cierreDe(o,f);if(c)return c.motivo;const wd=new Date(f+"T12:00").getDay();return diasDe(o).includes(wd)?"":"no abre los "+["domingos","lunes","martes","miércoles","jueves","viernes","sábados"][wd]}
+function CIERRES_INI(){return [{id:"c2611a",fecha:"2026-11-06",motivo:"Día del Bancario",objs:["bn","bp"]},{id:"c2611b",fecha:"2026-11-09",motivo:"Feriado nacional, visita del papa",objs:["bn","bp","an"]},{id:"c2611c",fecha:"2026-11-10",motivo:"Feriado bancario nacional",objs:["bn","bp"]}]}
+/* ---------- Fichas, rondines, vendedores e inicio ---------- */
+REG.domic={t:"Domiciliario",plural:"Domiciliarios con dispositivo",todo:true,linea:r=>r.nombre||"Sin nombre",
+ sub:r=>["DNI "+(r.dni||"-"),r.dom,r.permDesde&&r.permHasta?"Permiso "+r.permDesde+" a "+r.permHasta:""].filter(Boolean).join(" · "),
+ texto:r=>["DOMICILIARIO CON DISPOSITIVO","Persona: "+(r.nombre||"")+", DNI "+(r.dni||"-"),r.dom?"Domicilio: "+r.dom:"",r.juzgado?"Juzgado: "+r.juzgado:"",r.permLugar||r.permDesde?"Permiso laboral: "+[r.permLugar,r.permDias,r.permDesde&&r.permHasta?r.permDesde+" a "+r.permHasta:""].filter(Boolean).join(" · "):""].filter(Boolean).join("\n"),
+ def:()=>({}),campos:[["nombre","Apellido y nombre","text"],["dni","DNI","num"],["dom","Domicilio","text"],["juzgado","Juzgado","text"],["causa","Causa","text"],["permLugar","Lugar del permiso laboral","text"],["permDias","Días del permiso","text"],["permDesde","Permiso desde (hora)","time"],["permHasta","Permiso hasta (hora)","time"],["obs","Observaciones","textarea"]]};
+REG.perim={t:"Medida",plural:"Medidas perimetrales",todo:true,linea:r=>(r.denunciado||"?")+" → "+(r.victima||"?"),
+ sub:r=>[r.dist?r.dist+" m":"",r.juzgado,r.vence?"Vence "+fechaAR(r.vence):"Sin vencimiento cargado"].filter(Boolean).join(" · "),
+ alerta:r=>{if(!r.vence)return false;const d=nDia(r.vence)-nDia(fechaGuardia());return d<0?"Vencida":d<=3?(d===0?"Vence hoy":"Vence en "+d+" d"):false},
+ texto:r=>["MEDIDA PERIMETRAL","Víctima: "+(r.victima||"")+(r.domVict?" - "+r.domVict:""),"Denunciado: "+(r.denunciado||"")+(r.domDen?" - "+r.domDen:""),r.dist?"Distancia: "+r.dist+" m":"",r.juzgado?"Juzgado: "+r.juzgado:"",r.causa?"Causa: "+r.causa:"",r.desde?"Desde: "+fechaAR(r.desde):"",r.vence?"Vence: "+fechaAR(r.vence):""].filter(Boolean).join("\n"),
+ def:()=>({}),campos:[["victima","Víctima (persona protegida)","text"],["domVict","Domicilio de la víctima","text"],["denunciado","Denunciado","text"],["domDen","Domicilio del denunciado","text"],["dist","Distancia en metros","num"],["juzgado","Juzgado que la dictó","text"],["causa","Causa","text"],["desde","Vigente desde","date"],["vence","Vence","date"],["obs","Observaciones","textarea"]]};
+function vistaFicha(k){return `<div class="vista">${vistaReg(k)}</div>`}
+function vistaPerim(){return `<div class="vista">${vistaReg("perim")}<details><summary>Criterio de traslado de la dependencia</summary><div class="vista" style="padding-top:0"><label>Se muestra en cada llamado de perimetral<textarea id="crEd" rows="4">${esc(D.criterioPerim)}</textarea></label><button class="btn" id="crOk">Guardar criterio</button></div></details></div>`}
+function atarPerim(){atarReg("perim");$("crOk").onclick=()=>{D.criterioPerim=$("crEd").value.trim()||D.criterioPerim;guardar();tostada("Criterio guardado")}}
+
+function estadoRondin(r,f){
+  if(r.inicio&&f<r.inicio)return{t:"futuro",l:"Empieza el "+fechaAR(r.inicio)};
+  if(r.fin&&f>r.fin)return{t:"fin",l:"Finalizado"};
+  if(r.fin){const d=nDia(r.fin)-nDia(f);if(d<=(+r.avisoDias>=0&&r.avisoDias!==""?+r.avisoDias:3)){const l=d===0?"Vence hoy":"Vence en "+d+" día"+(d>1?"s":"");return{t:"vence",l,alerta:l}}}
+  else if(r.inicio&&nDia(f)-nDia(r.inicio)>=30)return{t:"activo",l:"Activo, sin fecha de fin",alerta:"Consultar si sigue"};
+  return{t:"activo",l:r.fin?"Activo":"Activo, sin fecha de fin"};
+}
+const rondActivos=f=>D.rondines.filter(r=>{const t=estadoRondin(r,f).t;return t==="activo"||t==="vence"});
+const pasadasDe=(rid,f)=>D.pasadas.filter(p=>p.rid===rid&&p.fecha===f);
+const nPas=r=>+r.pasadas>0?+r.pasadas:2;
+REG.rondines={t:"Rondín",plural:"Rondines cargados",todo:true,linea:r=>(r.persona||"Sin nombre")+(r.dom?" · "+r.dom:""),
+ sub:r=>[estadoRondin(r,fechaGuardia()).l,r.inicio?"Inicio "+fechaAR(r.inicio):"",r.fin?"Fin "+fechaAR(r.fin):"",nPas(r)+" pasadas"].filter(Boolean).join(" · "),
+ alerta:r=>{const e=estadoRondin(r,fechaGuardia());return e.alerta||(e.t==="fin"?"Finalizado":false)},
+ texto:r=>["RONDÍN","Persona: "+(r.persona||""),r.dom?"Domicilio: "+r.dom:"",r.solicita?"Solicita: "+r.solicita:"",r.causa?"Causa: "+r.causa:"",r.inicio?"Inicio: "+fechaAR(r.inicio):"","Fin: "+(r.fin?fechaAR(r.fin):"sin fecha informada"),"Pasadas por guardia: "+nPas(r)].filter(Boolean).join("\n"),
+ def:()=>({pasadas:"2",avisoDias:"3",inicio:hoyISO(),solicita:"Comisaría de la Mujer"}),
+ campos:[["persona","Persona","text"],["dom","Domicilio","text"],["solicita","Quién lo pidió","text"],["causa","Causa o expediente","text"],["pasadas","Pasadas por guardia","num"],["inicio","Fecha de inicio","date"],["fin","Fecha de finalización (si la sabés)","date"],["avisoDias","Avisar cuántos días antes del fin","num"],["obs","Observaciones","textarea"]]};
+let rondF=null;
+const descPas=x=>x.estaba==="Sí"?(x.firmo==="Sí"?"estaba y firmó":"estaba, no firmó"):"no estaba";
+function textoPasadas(f){return "RONDINES "+fechaAR(f)+"\n\n"+rondActivos(f).map(r=>{const p=pasadasDe(r.id,f);return (r.persona||"")+" - "+(r.dom||"")+": "+p.length+" de "+nPas(r)+(p.length?" ("+p.map(x=>x.hora+" "+descPas(x)+(x.nov?", "+x.nov:"")).join("; ")+")":"")}).join("\n")}
+function textoRecibo(f){const l=rondActivos(f).filter(r=>pasadasDe(r.id,f).length);return "RECIBO DE ACTAS DE RONDÍN - "+fechaAR(f)+"\nSe reciben actas de rondín de:\n"+(l.map(r=>{const n=pasadasDe(r.id,f).length;return "- "+(r.persona||"")+" - "+(r.dom||"")+" ("+n+" pasada"+(n>1?"s":"")+")"}).join("\n")||"[sin pasadas cargadas]")+"\n\nRecibe: ____________ Firma y sello: ____________"}
+function vistaRondines(){
+  const f=rondF||fechaGuardia(),l=rondActivos(f),falt=l.filter(r=>pasadasDe(r.id,f).length<nPas(r));
+  return `<section class="panel"><h2>Rondines de la guardia</h2><label>Día de guardia<input type="date" id="rdF" value="${f}"></label>
+  ${l.length?(falt.length?`<div class="aviso">Faltan pasadas en ${falt.length} rondín${falt.length>1?"es":""}.</div>`:`<p class="ayuda">Todas las pasadas hechas.</p>`):`<p class="ayuda">No hay rondines activos ese día. Cargalos abajo.</p>`}
+  <div>${l.map(r=>{const p=pasadasDe(r.id,f),n=nPas(r),e=estadoRondin(r,f);return `<div class="item"><div><b style="font:700 20px var(--display)">${esc(r.persona||"Sin nombre")}</b> <span class="pill ${p.length>=n?"ok":""}">${p.length} de ${n}</span>${e.alerta?` <span class="pill">${esc(e.alerta)}</span>`:""}<div class="ayuda">${esc(r.dom||"")}</div></div>
+   ${p.map(x=>`<div class="tel" style="grid-template-columns:1fr auto"><span>${esc(x.hora)} · ${descPas(x)}${x.nov?" · "+esc(x.nov):""}</span><button class="btn chico peligro" data-rpdel="${x.id}">Borrar</button></div>`).join("")}
+   <label>Novedad (opcional)<input id="rn_${r.id}" autocomplete="off"></label>
+   <div class="tres"><button class="btn chico prim" data-rp="${r.id}" data-pe="sf">Estaba y firmó</button><button class="btn chico" data-rp="${r.id}" data-pe="sn">Estaba, no firmó</button><button class="btn chico" data-rp="${r.id}" data-pe="no">No estaba</button></div></div>`}).join("")}</div>
+  ${l.length?`<div class="fila">${botonWA("waRd",textoPasadas(f))}<button class="btn" id="copRd">Copiar</button></div>`:""}</section>
+ <section class="panel"><h2>Entrega de actas</h2><p class="ayuda">Copiá el texto en el recibo o mandalo al grupo. Después registrá la entrega.</p>
+  <div class="salida">${esc(textoRecibo(f))}</div><div class="fila">${botonWA("waRc",textoRecibo(f))}<button class="btn" id="copRc">Copiar recibo</button></div>
+  <div class="dos"><label>Recibió<input id="enRec" autocomplete="off"></label><label>Hora<input type="time" id="enHora" value="${horaAhora()}"></label></div>
+  <label>N° de recibo u observaciones<input id="enObs" autocomplete="off"></label><button class="btn prim" id="enOk">Registrar entrega</button>
+  ${D.entregas.length?`<details><summary>Entregas registradas <span class="prog">${D.entregas.length}</span></summary><div>${D.entregas.map(x=>`<div class="tel" style="grid-template-columns:1fr"><span>${fechaAR(x.fecha)} ${esc(x.hora||"")} · ${x.cant} acta${x.cant===1?"":"s"} · recibió ${esc(x.recibio||"-")}${x.obs?" · "+esc(x.obs):""}</span></div>`).join("")}</div></details>`:""}</section>
+ <details><summary>Importar varios rondines</summary><div class="vista" style="padding-top:0">
+  <p class="ayuda">Una línea por rondín: persona | domicilio | fin (dd/mm/aaaa, vacío si es hasta nueva resolución) | causa | observaciones</p>
+  <label>Texto a importar<textarea id="rImp" rows="6"></textarea></label><button class="btn prim" id="rImpOk">Importar</button></div></details>
+ ${vistaReg("rondines")}`;
+}
+function parseRondines(txt){
+  return String(txt).split(/\n+/).map(l=>l.replace(/^[\s*•-]+/,"").trim()).filter(Boolean).map(l=>{
+    const p=l.split("|").map(x=>x.trim());const m=(p[2]||"").match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+    const fin=m?(m[3].length===2?"20"+m[3]:m[3])+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0"):"";
+    return{persona:p[0]||"",dom:p[1]||"",fin,causa:p[3]||"",obs:p[4]||"",pasadas:"2",avisoDias:"3",inicio:hoyISO(),solicita:""}}).filter(r=>r.persona);
+}
+function atarRondines(){
+  const f=rondF||fechaGuardia();
+  $("rdF").onchange=e=>{rondF=e.target.value||null;pintar()};
+  document.querySelectorAll("[data-rp]").forEach(b=>b.onclick=()=>{const e=b.dataset.pe,i=$("rn_"+b.dataset.rp);D.pasadas.push({id:nuevoId(),rid:b.dataset.rp,fecha:f,hora:horaAhora(),estaba:e==="no"?"No":"Sí",firmo:e==="sf"?"Sí":"No",nov:i?i.value.trim():""});guardar();pintar();tostada("Pasada registrada")});
+  document.querySelectorAll("[data-rpdel]").forEach(b=>b.onclick=()=>seguro("¿Estás seguro de borrar esta pasada?",()=>{D.pasadas=D.pasadas.filter(x=>x.id!==b.dataset.rpdel);registrarCambio("Borrado de pasada de rondín","");guardar();pintar()}));
+  const c=$("copRd");if(c)c.onclick=()=>copiar(textoPasadas(f),"Copiado");
+  $("copRc").onclick=()=>copiar(textoRecibo(f),"Recibo copiado");
+  $("enOk").onclick=()=>{const cant=rondActivos(f).reduce((s,r)=>s+pasadasDe(r.id,f).length,0);D.entregas.unshift({id:nuevoId(),fecha:f,hora:$("enHora").value,recibio:$("enRec").value.trim(),obs:$("enObs").value.trim(),cant});guardar();pintar();tostada("Entrega registrada")};
+  $("rImpOk").onclick=()=>{const l=parseRondines($("rImp").value);if(!l.length){tostada("No encontré rondines en el texto");return}
+    let n=0;l.forEach(r=>{if(D.rondines.some(x=>plano(x.persona)===plano(r.persona)&&plano(x.dom)===plano(r.dom)))return;D.rondines.push(Object.assign({id:nuevoId(),fecha:fechaGuardia()},r));n++});
+    guardar();pintar();tostada(n?"Importados: "+n:"Ya estaban cargados")};
+  atarReg("rondines");
+}
+
+const soloDig=s=>String(s||"").replace(/\D/g,"");
+function identsDe(r,excl){const dn=soloDig(r.dni),nm=plano(String(r.nombre||"").trim());return D.vendedores.filter(x=>x.id!==excl&&(dn?soloDig(x.dni)===dn:!!nm&&plano(String(x.nombre||"").trim())===nm))}
+function resumenVend(l){const u=l[l.length-1];return "Ya identificado "+l.length+" "+(l.length===1?"vez":"veces")+". Última: "+fechaAR(u.fecha).slice(0,5)+(u.lugar?" en "+u.lugar:"")+(u.secuestro?", con secuestro de mercadería":", sin secuestro")+"."+(u.conducta?" Conducta anotada: "+u.conducta:"")}
+function textoVendedor(r){
+  const v=(l,x)=>x&&String(x).trim()?"\n"+l+": "+String(x).trim():"",ix=D.vendedores.indexOf(r),prev=identsDe(r,r.id).filter(x=>D.vendedores.indexOf(x)<ix);
+  let s="IDENTIFICACIÓN DE VENDEDOR AMBULANTE\n"+fechaAR(r.fecha)+(r.hora?" "+r.hora:"")+(r.lugar?" - "+r.lugar:"")+"\n\nApellido y nombre: "+(r.nombre||"[completar]")+"\nDNI: "+(r.dni||"[completar]")+(r.nac?"\nF/N: "+fechaAR(r.nac)+" - "+edadDe(r.nac)+" años":"")+v("Domicilio",[r.dom,r.loc].filter(Boolean).join(", "))+v("Teléfono",r.tel)+v("Vende",r.vende)+v("Zonas habituales",r.zonas)+v("Mercadería",r.mercaderia);
+  if(r.transito==="Sí")s+="\nSe solicitó tránsito municipal al 911"+(r.horaTr?". Se presentó a las "+r.horaTr:"")+(r.inspector?", inspector "+r.inspector:"");
+  s+=v("Acta de infracción N°",r.acta)+(r.secuestro?"\nSecuestro: "+r.secuestro:"\nSin secuestro de mercadería")+v("Consulta por radio",r.radio)+v("Conducta observada",r.conducta)+v("Acompañantes o vehículo",r.acomp)+v("Observaciones",r.obs);
+  if(prev.length)s+="\n\nRegistro propio: identificado antes "+prev.length+" "+(prev.length===1?"vez":"veces")+", la última el "+fechaAR(prev[prev.length-1].fecha).slice(0,5)+".";
+  return s;
+}
+REG.vendedores={t:"Identificación",plural:"Vendedores identificados",todo:true,linea:r=>(r.nombre||"Sin nombre")+(r.dni?" · DNI "+r.dni:""),
+ sub:r=>[fechaAR(r.fecha).slice(0,5)+(r.hora?" "+r.hora:""),r.lugar,r.secuestro?"con secuestro":"sin secuestro"].filter(Boolean).join(" · "),
+ alerta:r=>{const n=identsDe(r).length;return n>1?"Identificado "+n+" veces":false},texto:textoVendedor,
+ def:()=>({hora:horaAhora(),transito:"No"}),
+ campos:[["hora","Hora","time"],["lugar","Lugar","text"],["dni","DNI","num"],["nombre","Apellido y nombre","text"],["nac","Fecha de nacimiento","date"],["dom","Domicilio","text"],["loc","Localidad","text"],["tel","Teléfono","tel"],["vende","Qué vende","text"],["zonas","Zonas donde suele estar","text"],["mercaderia","Mercadería que tenía","textarea"],["transito","¿Se pidió tránsito municipal al 911?","select",["No","Sí"]],["horaTr","Hora en que se presentó tránsito","time"],["inspector","Inspector de tránsito","text"],["acta","N° de acta de infracción","text"],["secuestro","Mercadería secuestrada (vacío si no hubo)","textarea"],["radio","Consulta por radio","select",["","Sin novedad","Con impedimento","Otro"]],["conducta","Conducta observada (casa por casa, miraba o fotografiaba domicilios, marcas)","textarea"],["acomp","Acompañantes o quién lo trajo (vehículo y dominio)","textarea"],["obs","Observaciones","textarea"]]};
+
+const cubreSiempre=o=>o.siempre===undefined?o.id!=="ca":!!o.siempre;
+function faltanCubrir(f){return D.adObj.filter(o=>cubreSiempre(o)&&!motivoCerrado(o,f)).flatMap(o=>o.puestos.filter(p=>!asigs(f,p.id).some(a=>a.pid)).map(p=>o.nombre+(p.nombre?" "+p.nombre:"")))}
+function copiarAnterior(f){
+  const prev=D.adic.filter(a=>a.pid&&a.fecha<f).map(a=>a.fecha).sort().pop();if(!prev){tostada("No hay un adicional anterior");return}
+  let n=0;const pu=id=>D.adObj.flatMap(o=>o.puestos).find(x=>x.id===id);
+  [...new Set(D.adic.filter(a=>a.fecha===prev).map(a=>a.puesto))].forEach(pid=>{if(asigs(f,pid).length)return;const p=pu(pid);if(!p)return;const rows=asigs(prev,pid),div=rows.length>1;
+    rows.forEach(a=>{D.adic.push({id:nuevoId(),fecha:f,puesto:pid,obj:a.obj,pid:efDe(a.pid)?a.pid:"",entrada:a.entrada,salida:div?a.salida:(p.salida||""),nota:""});n++})});
+  guardar();pintar();tostada(n?"Copiado del "+fechaAR(prev).slice(0,5)+": "+n+" turno"+(n>1?"s":""):"Ya estaba todo asignado");
+}
+
+function vistaInicio(){
+  const f=fechaGuardia(),T=D.turnos,pg=proximaGuardia(new Date(),T.ref,T.hora),ab=D.llamados.filter(r=>!r.fin&&nDia(f)-nDia(r.fecha)<=1);
+  const ra=rondActivos(f),falt=ra.filter(r=>pasadasDe(r.id,f).length<nPas(r)),venc=D.rondines.filter(r=>estadoRondin(r,f).alerta);
+  const pa=proxAdicional(),fc=faltanCubrir(pa),[y,m,d]=pa.split("-").map(Number),envio=iso(new Date(y,m-1,d-1));
+  const serv=D.servicio.fecha===f&&Object.values(D.servicio.filas||{}).some(a=>a&&a.length);
+  const movNov=D.flota.filter(x=>{const u=ultima(x.id);return u&&novedadesDe(u).length}),perV=D.perim.filter(x=>REG.perim.alerta(x));
+  const fila=(txt,est,ir,ok)=>`<div class="tel" style="grid-template-columns:1fr auto"><span>${esc(txt)}<br><span class="ayuda">${esc(est)}</span></span><button class="btn chico ${ok?"":"prim"}" data-ir="${ir}">Ver</button></div>`;
+  return `<div class="vista">
+  <section class="panel"><h2>${pg&&pg.enCurso?"De guardia":"Próxima guardia"}</h2><p class="ayuda" style="margin:0">${pg?esc(pg.enCurso?"Termina el "+fmtDia(pg.fin)+" a las "+T.hora+".":"Entrás el "+fmtDia(pg.ini)+" a las "+T.hora+"."):""}</p>
+   <div class="tres">${[["llamados:panorama","Panorama"],["llamados:general","Llamado"],["personas","Persona"],["dominios","Dominio"],["vendedores","Vendedor"],["novedades","Novedad"]].map(([q,l])=>`<button class="btn ${q==="llamados:panorama"?"prim":""}" data-qk="${q}">${l}</button>`).join("")}</div></section>
+  ${bkVencido()?`<div class="aviso">Hace más de 7 días que no hacés un respaldo. Está en Registro, Novedades, al final.</div>`:""}
+  ${ab.length?`<section class="panel"><h2>Llamados en curso</h2><div>${ab.map(r=>`<div class="tel" style="grid-template-columns:1fr auto"><span>${esc(REG.llamados.linea(r))}<br><span class="ayuda">${esc(r.lugar||"")}</span></span>${!r.arribo?`<button class="btn chico prim" data-lle="${r.id}">Llegué</button>`:`<button class="btn chico prim" data-lfi="${r.id}">Terminé</button>`}</div>`).join("")}</div></section>`:""}
+  <section class="panel"><h2>Hoy</h2><div>
+   ${fila("Servicio del día",serv?"Armado":"Sin armar","servicio",serv)}
+   ${fila("Rondines",ra.length?(falt.length?"Faltan pasadas en "+falt.length+" de "+ra.length:"Todas las pasadas hechas"):"Sin rondines activos","registro:rondines",!falt.length)}
+   ${fila("Adicional del "+fechaAR(pa).slice(0,5),(fc.length?"Falta cubrir: "+fc.join(", "):"Todo cubierto")+" · Enviar el "+fechaAR(envio).slice(0,5),"adicionales:armar",!fc.length)}
+   ${movNov.length?fila("Móviles con novedad",movNov.map(x=>x.num).join(", "),"moviles",false):""}
+   ${venc.length?fila("Rondines por vencer o para consultar",venc.map(r=>(r.persona||"")+" ("+estadoRondin(r,f).alerta+")").join(", "),"registro:rondines",false):""}
+   ${perV.length?fila("Perimetrales vencidas o por vencer",perV.length+" medida"+(perV.length>1?"s":""),"perim",false):""}
+  </div></section></div>`;
+}
+function atarInicio(){
+  document.querySelectorAll("[data-qk]").forEach(b=>b.onclick=()=>{const[sr,tp]=b.dataset.qk.split(":");subR=sr;if(tp){tipoLl=tp;eReg.llamados=null}ir("registro")});
+  document.querySelectorAll("[data-ir]").forEach(b=>b.onclick=()=>{const[t,s]=b.dataset.ir.split(":");if(t==="registro")subR=s;if(t==="adicionales"){subA=s||"armar";adFecha=proxAdicional()}ir(t)});
+  llamadoBotones();
+}
+
+/* ---------- Adicionales ---------- */
+const REGIMENES={"24x48":[1,2],"2x4":[2,4],"2x5":[2,5]};
+function cicloDe(e){if(REGIMENES[e.reg])return REGIMENES[e.reg];if(e.reg==="Otro"&&+e.trab>0&&+e.franc>0)return[+e.trab,+e.franc];return null}
+function estadoEf(e,f){
+  if(e.licDesde&&f>=e.licDesde&&(!e.licHasta||f<=e.licHasta))return{t:"licencia",l:"De licencia"};
+  const c=cicloDe(e);if(!c||!e.ref)return{t:"sin",l:"Sin régimen cargado"};
+  const n=c[0]+c[1],i=(((nDia(f)-nDia(e.ref))%n)+n)%n;
+  if(i<c[0])return{t:"trabaja",l:"Trabaja"};
+  if(e.reg==="24x48"&&i===1)return{t:"saliente",l:"Saliente de guardia"};
+  return{t:"franco",l:"De franco"};
+}
+REG.adEf={t:"Efectivo",plural:"Efectivos de adicionales",todo:true,linea:r=>nombreP(r)||"Sin nombre",
+  sub:r=>[r.reg||"Sin régimen",r.destino,"Hoy: "+estadoEf(r,hoyISO()).l].filter(Boolean).join(" · "),
+  texto:r=>[nombreP(r),r.legajo?"Legajo "+r.legajo:"",r.dni?"DNI "+r.dni:"",r.tel?"Tel. "+r.tel:""].filter(Boolean).join("\n"),
+  def:()=>({reg:"24x48"}),campos:[["jer","Jerarquía","text"],["nombre","Apellido y nombre","text"],["legajo","Legajo","text"],["dni","DNI","num"],["tel","Teléfono","tel"],["destino","Destino donde trabaja","text"],["loc","Localidad","text"],
+  ["reg","Tipo de servicio","select",["24x48","2x4","2x5","12x36","Otro"]],["ref","Un día que trabaja (fecha)","date"],["trab","Días de trabajo, solo si es Otro","num"],["franc","Días de franco, solo si es Otro","num"],["licDesde","Licencia desde","date"],["licHasta","Licencia hasta","date"]]};
+function OBJ_INI(){return [
+  {id:"bn",nombre:"Bco. Nación",grupo:"Bancos",puestos:[{id:"bn1",nombre:"Largo",entrada:"09:15",salida:"",nota:"Hasta el cierre del tesoro"},{id:"bn2",nombre:"Corto",entrada:"10:00",salida:"15:00",nota:""}]},
+  {id:"bp",nombre:"Banco Provincia",grupo:"Bancos",puestos:[{id:"bp1",nombre:"Largo",entrada:"09:00",salida:"",nota:"Hasta el cierre del tesoro"},{id:"bp2",nombre:"Corto",entrada:"10:00",salida:"",nota:"Hasta que se va el último cliente"}]},
+  {id:"an",nombre:"Anses",grupo:"ANSES",puestos:[{id:"an1",nombre:"",entrada:"08:00",salida:"",nota:"Salida a confirmar"}]},
+  {id:"cp",nombre:"Casa de la Provincia",grupo:"Casa de la Provincia",puestos:[{id:"cp1",nombre:"",entrada:"07:00",salida:"19:00",nota:"",fija:true},{id:"cp2",nombre:"",entrada:"19:00",salida:"07:00",nota:"",fija:true}]},
+  CANCHA()
+]}
+const GRUPOS=()=>[...new Set(D.adObj.map(o=>o.grupo))];
+const hs=h=>!h?"":(h.endsWith(":00")?h.slice(0,2):h)+" hs";
+const fechaCorta=f=>{const[a,m,d]=f.split("-");return d+"/"+m+"/"+a.slice(2)};
+function proxAdicional(){const T=D.turnos;let d=new Date();d.setHours(0,0,0,0);for(let i=0;i<4;i++){const f=iso(new Date(d.getFullYear(),d.getMonth(),d.getDate()+i));if((((nDia(f)-nDia(T.ref))%3)+3)%3===2)return f}return hoyISO()}
+let adFecha=null,subA="armar",adMes=hoyISO().slice(0,7);
+const asign=(f,pu)=>D.adic.find(a=>a.fecha===f&&a.puesto===pu);
+const efDe=id=>D.adEf.find(e=>e.id===id);
+function minutosTurno(a){return a.entrada&&a.salida?hhmmDif(a.entrada,a.salida):null}
+function valorDe(grupo,f){const v=D.adVal.filter(x=>x.grupo===grupo&&x.desde<=f).sort((a,b)=>b.desde.localeCompare(a.desde))[0];return v?+v.valor:0}
+function CANCHA(){return {id:"ca",nombre:"Cancha",grupo:"Cancha",puestos:[{id:"ca1",nombre:"",entrada:"",salida:"",nota:""},{id:"ca2",nombre:"",entrada:"",salida:"",nota:""}]}}
+const asigs=(f,pu)=>D.adic.filter(a=>a.fecha===f&&a.puesto===pu);
+function textoPolad(f){
+  let t="P.O.L.A.D\n\n"+fechaCorta(f);
+  D.adObj.forEach(o=>{const ls=[];o.puestos.forEach(p=>{const l=asigs(f,p.id),rango=p.fija||l.length>1;l.forEach(a=>{const e=efDe(a.pid),n=e?nombreP(e):"[efectivo]",h=hs(a.entrada)||"[hora]";
+    let x=(rango?h+" a "+(hs(a.salida)||"[hora]"):h)+(p.nombre?" "+p.nombre:"")+": "+n;if(a.nota)x+="\n"+a.nota;ls.push(x)})});
+    if(ls.length)t+="\n\n"+o.nombre+":\n"+ls.join("\n\n");else{const c=cierreDe(o,f);if(c)t+="\n\n"+o.nombre+": sin servicio ("+c.motivo+")"}});
+  return t;
+}
+function vistaArmar(){
+  const f=adFecha||(adFecha=proxAdicional()),[y,mm,dd]=f.split("-").map(Number),antes=iso(new Date(y,mm-1,dd-1));
+  const opc=pid=>D.adEf.map(e=>{const s=estadoEf(e,f),ya=D.adic.some(a=>a.fecha===f&&a.pid===e.id&&a.pid!==pid);return{e,s,ya}}).sort((a,b)=>(a.ya-b.ya)||((a.s.t!=="franco")-(b.s.t!=="franco"))||nombreP(a.e).localeCompare(nombreP(b.e)));
+  const opciones=pid=>opc(pid).map(x=>`<option value="${x.e.id}" ${x.e.id===pid?"selected":""} ${x.ya?"disabled":""}>${esc(nombreP(x.e))} · ${x.ya?"ya asignado":esc(x.s.l)}</option>`).join("");
+  const sinEf=D.adic.some(a=>a.fecha===f&&!a.pid);
+  const fila=(a,p,rango,i,n)=>{const e=a.pid&&efDe(a.pid),s=e&&estadoEf(e,f);return `<div class="item">${n>1?`<b>Parte ${i+1}</b>`:""}
+    <label>Efectivo<select id="ae_${a.id}" data-aid="${a.id}"><option value="">Sin asignar</option>${opciones(a.pid)}</select></label>
+    ${s&&s.t!=="franco"?`<span class="pill">${esc(s.l)}</span>`:""}
+    <div class="dos"><label>Ingreso<input type="time" id="aen_${a.id}" data-aen="${a.id}" value="${esc(a.entrada||"")}"></label>${rango?`<label>Salida<input type="time" id="asa_${a.id}" data-asa="${a.id}" value="${esc(a.salida||"")}"></label>`:`<label>Nota (opcional)<input id="ano_${a.id}" data-ano="${a.id}" value="${esc(a.nota||"")}" autocomplete="off"></label>`}</div>
+    ${rango?`<label>Nota (opcional)<input id="ano_${a.id}" data-ano="${a.id}" value="${esc(a.nota||"")}" autocomplete="off"></label>`:""}
+    <div class="fila">${i===n-1?`<button class="btn chico" data-adiv="${a.id}">Dividir: otro efectivo cubre una parte</button>`:""}${n>1?`<button class="btn chico peligro" data-aq="${a.id}">Quitar esta parte</button>`:""}</div></div>`};
+  return `<div class="panel"><h2>Armar adicional</h2>
+    <label>Fecha del adicional<input type="date" id="adF" value="${f}"></label>
+    <p class="ayuda">Mandalo a la guardia de comisaría el ${fechaAR(antes)}, el día anterior. Las salidas reales se cargan después en Rendición.</p>
+    ${D.adEf.length?"":`<div class="aviso">Primero cargá efectivos en la pestaña Efectivos.</div>`}
+    ${sinEf?`<div class="aviso">Hay partes sin efectivo asignado. No cuentan en la rendición.</div>`:""}${(fc=>fc.length?`<div class="aviso">Falta cubrir: ${esc(fc.join(", "))}</div>`:`<p class="ayuda">Todo cubierto.</p>`)(faltanCubrir(f))}<button class="btn" id="adCopia">Copiar el armado del último adicional</button>
+    ${D.adObj.map(o=>{const mot=motivoCerrado(o,f),usa=o.puestos.some(p=>asigs(f,p.id).length);if(mot&&!usa)return `<div class="item"><b style="font:700 21px var(--display)">${esc(o.nombre)}</b><span class="ayuda">Sin servicio: ${esc(mot)}</span></div>`;return `<div class="item"><b style="font:700 21px var(--display)">${esc(o.nombre)}</b>${mot?`<span class="pill">Cerrado: ${esc(mot)}</span>`:""}${o.puestos.map(p=>{const l=asigs(f,p.id),rango=p.fija||l.length>1;return `<div class="item">
+      <span class="ayuda">${esc([p.nombre,p.entrada?"Ingreso "+hs(p.entrada)+(p.fija&&p.salida?" a "+hs(p.salida):""):"Ingreso a definir"].filter(Boolean).join(" · "))}</span>
+      ${l.map((a,i)=>fila(a,p,rango,i,l.length)).join("")}
+      ${l.length?"":`<label>Efectivo<select id="ae_${p.id}" data-anew="${p.id}"><option value="">Sin asignar</option>${opciones(null)}</select></label>`}
+    </div>`}).join("")}</div>`}).join("")}
+  </div>
+  <section class="panel"><h2>Mensaje para la guardia</h2><div class="salida">${esc(textoPolad(f))}</div>
+  <p class="ayuda">Lo cargado queda guardado para la rendición, aunque no lo mandes.</p>
+  <div class="fila">${botonWA("waAd",textoPolad(f))}<button class="btn" id="copAd">Copiar</button></div></section>`;
+}
+function atarArmar(){
+  const f=adFecha,porId=id=>D.adic.find(a=>a.id===id),pu=id=>D.adObj.flatMap(o=>o.puestos).find(x=>x.id===id);
+  const quitar=a=>seguro("¿Estás seguro de quitar esta asignación? Se borran sus horas de ese día.",()=>{D.adic=D.adic.filter(x=>x!==a);registrarCambio("Adicional quitado",fechaAR(f)+" "+(efDe(a.pid)?nombreP(efDe(a.pid)):""));guardar();pintar()});
+  $("adF").onchange=e=>{adFecha=e.target.value||proxAdicional();pintar()};
+  document.querySelectorAll("[data-anew]").forEach(s=>s.onchange=()=>{if(!s.value)return;const p=pu(s.dataset.anew);
+    D.adic.push({id:nuevoId(),fecha:f,puesto:p.id,obj:D.adObj.find(o=>o.puestos.includes(p)).id,pid:s.value,entrada:p.entrada,salida:p.salida||"",nota:""});guardar();pintar()});
+  document.querySelectorAll("[data-aid]").forEach(s=>s.onchange=()=>{const a=porId(s.dataset.aid);if(!s.value){quitar(a);s.value=a.pid;return}a.pid=s.value;guardar();pintar()});
+  document.querySelectorAll("[data-aen]").forEach(i=>i.onchange=()=>{porId(i.dataset.aen).entrada=i.value;guardar();pintar()});
+  document.querySelectorAll("[data-ano]").forEach(i=>i.onchange=()=>{porId(i.dataset.ano).nota=i.value;guardar();pintar()});
+  document.querySelectorAll("[data-asa]").forEach(i=>i.onchange=()=>{const a=porId(i.dataset.asa),ant=a.salida,l=asigs(f,a.puesto),sig=l[l.indexOf(a)+1];a.salida=i.value;
+    if(sig&&(!sig.entrada||sig.entrada===ant))sig.entrada=i.value;guardar();pintar()});
+  document.querySelectorAll("[data-adiv]").forEach(b=>b.onclick=()=>{const a=porId(b.dataset.adiv),n={id:nuevoId(),fecha:f,puesto:a.puesto,obj:a.obj,pid:"",entrada:"",salida:a.salida||"",nota:""};
+    a.salida="";D.adic.splice(D.adic.indexOf(a)+1,0,n);guardar();pintar();tostada("Cargá la hora de corte y el otro efectivo")});
+  document.querySelectorAll("[data-aq]").forEach(b=>b.onclick=()=>quitar(porId(b.dataset.aq)));
+  $("adCopia").onclick=()=>copiarAnterior(f);
+  $("copAd").onclick=()=>copiar(textoPolad(f),"Mensaje copiado");
+}
+const cent=n=>Math.round(n*100)/100,pesos=n=>"$"+(+n).toLocaleString("es-AR",{minimumFractionDigits:2,maximumFractionDigits:2});
+const objDe=a=>D.adObj.find(x=>x.id===a.obj);
+function importeTurno(a){const m=minutosTurno(a),o=objDe(a);return m==null||!o?0:m/60*valorDe(o.grupo,a.fecha)}
+function turnosMes(mes){const ix=a=>D.adObj.findIndex(o=>o.id===a.obj);return D.adic.filter(a=>a.pid&&a.fecha.startsWith(mes)).sort((a,b)=>a.fecha.localeCompare(b.fecha)||ix(a)-ix(b)||String(a.entrada).localeCompare(String(b.entrada)))}
+function datosRendicion(mes){
+  const l=turnosMes(mes);
+  return GRUPOS().map(g=>{const it=l.filter(a=>{const o=objDe(a);return o&&o.grupo===g});
+    let min=0,imp=0,pend=0;it.forEach(a=>{const m=minutosTurno(a);if(m==null)pend++;else{min+=m;imp+=importeTurno(a)}});
+    return{g,it,min,imp:cent(imp),pend}}).filter(x=>x.it.length);
+}
+const nombreMes=mes=>{const[a,m]=mes.split("-");return new Date(+a,+m-1,1).toLocaleDateString("es-AR",{month:"long",year:"numeric"}).toUpperCase()};
+function textoRendicion(mes){
+  const R=datosRendicion(mes);let t="RENDICIÓN DE ADICIONALES - "+nombreMes(mes)+"\nResponsable: "+yoTxt(),tm=0,ti=0,tp=0;
+  R.forEach(x=>{const v=[...new Set(x.it.map(a=>valorDe(x.g,a.fecha)))];
+    t+="\n\n"+x.g.toUpperCase()+" - Valor hora: "+v.map(y=>pesos(y)).join(" / ");
+    x.it.forEach(a=>{const o=objDe(a),e=efDe(a.pid),mm=minutosTurno(a),p=o.puestos.find(z=>z.id===a.puesto);
+      t+="\n"+fechaAR(a.fecha).slice(0,5)+" "+o.nombre+(p&&p.nombre?" "+p.nombre:"")+" - "+(e?nombreP(e)+(e.legajo?", Leg. "+e.legajo:""):"[efectivo]")+" - "+(a.entrada||"[ingreso]")+" a "+(a.salida||"[salida]")+" - "+(mm==null?"PENDIENTE":durTxt(mm))});
+    t+="\nSubtotal: "+durTxt(x.min)+" - "+pesos(x.imp);tm+=x.min;ti=cent(ti+x.imp);tp+=x.pend});
+  if(!R.length)return t+"\n\nSin adicionales cargados.";
+  return t+"\n\nTOTAL: "+durTxt(tm)+" - "+pesos(ti)+"\nPendientes de horario: "+(tp||"ninguno");
+}
+function porEfectivo(mes){
+  const o={};turnosMes(mes).forEach(a=>{const m=minutosTurno(a),k=a.pid;o[k]=o[k]||{min:0,n:0,pend:0,imp:0};o[k].n++;if(m==null)o[k].pend++;else{o[k].min+=m;o[k].imp+=importeTurno(a)}});
+  return Object.entries(o).map(([k,v])=>({e:efDe(k),...v,imp:cent(v.imp)})).sort((a,b)=>b.min-a.min);
+}
+function textoPorEfectivo(mes){return "HORAS POR EFECTIVO - "+nombreMes(mes)+"\n\n"+porEfectivo(mes).map(x=>(x.e?nombreP(x.e):"Efectivo borrado")+": "+durTxt(x.min)+" - "+pesos(x.imp)+" ("+x.n+" turno"+(x.n>1?"s":"")+(x.pend?", "+x.pend+" sin salida":"")+")").join("\n")}
+let rObj="todos",rPend=false;
+function vistaRendicion(){
+  const R=datosRendicion(adMes),pend=R.reduce((s,x)=>s+x.pend,0),sinValor=R.filter(x=>x.it.some(a=>!valorDe(x.g,a.fecha))).map(x=>x.g);
+  const todos=turnosMes(adMes),l=todos.filter(a=>(rObj==="todos"||a.obj===rObj)&&(!rPend||minutosTurno(a)==null));
+  const objs=D.adObj.filter(o=>todos.some(a=>a.obj===o.id));
+  return `<section class="panel"><h2>Rendición mensual</h2><label>Mes<input type="month" id="adM" value="${adMes}"></label>
+    ${pend?`<div class="aviso">${pend} turno${pend>1?"s":""} sin hora de salida.</div>`:""}
+    ${sinValor.length?`<div class="aviso">Falta el precio por hora de: ${esc(sinValor.join(", "))}. Cargalo en Objetivos.</div>`:""}</section>
+  <section class="panel"><h2>Cargar horarios de salida</h2>
+    <p class="ayuda">Con la planilla de presentismo de cada objetivo, completá la salida de cada día. Si la entrada fue otra, corregila también.</p>
+    <div class="fila" role="group" aria-label="Objetivo"><button class="chip" data-rob="todos" aria-pressed="${rObj==="todos"}">Todos</button>${objs.map(o=>{const p=todos.filter(a=>a.obj===o.id&&minutosTurno(a)==null).length;return `<button class="chip" data-rob="${o.id}" aria-pressed="${rObj===o.id}">${esc(o.nombre)}${p?" · "+p:""}</button>`}).join("")}</div>
+    <label class="check" style="border:0"><input type="checkbox" id="rPend" ${rPend?"checked":""}><span>Ver solo los que faltan</span></label>
+    <div>${l.map(a=>{const o=objDe(a),p=o&&o.puestos.find(x=>x.id===a.puesto),e=efDe(a.pid),m=minutosTurno(a);return `<div class="item"><div><b>${fechaAR(a.fecha).slice(0,5)} · ${esc(o?o.nombre:"Objetivo borrado")}${p&&p.nombre?" "+esc(p.nombre):""}</b> ${m==null?`<span class="pill">Falta salida</span>`:""}<div class="ayuda">${esc(e?nombreP(e):"Efectivo borrado")}</div></div>
+      <div class="dos"><label>Entrada<input type="time" id="re_${a.id}" data-re="${a.id}" value="${esc(a.entrada||"")}"></label><label>Salida<input type="time" id="rs_${a.id}" data-rs="${a.id}" value="${esc(a.salida||"")}"></label></div>
+      ${m!=null?`<span class="ayuda">${durTxt(m)} · ${pesos(importeTurno(a))}</span>`:""}</div>`}).join("")||`<p class="ayuda">${todos.length?"No hay turnos pendientes con ese filtro.":"Sin adicionales este mes."}</p>`}</div></section>
+  <section class="panel"><h2>Horas y plata por efectivo</h2><div>${porEfectivo(adMes).map(x=>`<div class="tel" style="grid-template-columns:1fr auto"><span>${esc(x.e?nombreP(x.e):"Efectivo borrado")}<br><span class="ayuda">${x.n} turno${x.n>1?"s":""}${x.pend?" · "+x.pend+" sin salida":""}</span></span><b style="text-align:right">${durTxt(x.min)}<br>${pesos(x.imp)}</b></div>`).join("")||`<p class="ayuda">Sin datos.</p>`}</div>
+    ${todos.length?`<button class="btn" id="copEf">Copiar detalle por efectivo</button>`:""}</section>
+  <section class="panel"><h2>Rendición para presentar</h2>
+    <div class="tiles">${R.map(x=>`<div class="tile"><strong>${Math.floor(x.min/60)}h ${String(x.min%60).padStart(2,"0")}m</strong><span>${esc(x.g)} · ${pesos(x.imp)}</span></div>`).join("")||`<p class="ayuda">Sin adicionales este mes.</p>`}</div>
+    <div class="salida">${esc(textoRendicion(adMes))}</div>
+    <div class="fila">${botonWA("waRen",textoRendicion(adMes))}<button class="btn" id="copRen">Copiar rendición</button></div></section>`;
+}
+function atarRendicion(){
+  $("adM").onchange=e=>{adMes=e.target.value||adMes;rObj="todos";pintar()};
+  document.querySelectorAll("[data-rob]").forEach(b=>b.onclick=()=>{rObj=b.dataset.rob;pintar()});
+  $("rPend").onchange=e=>{rPend=e.target.checked;pintar()};
+  const upd=(attr,campo)=>document.querySelectorAll(`[${attr}]`).forEach(i=>i.onchange=()=>{const a=D.adic.find(x=>x.id===i.getAttribute(attr));if(a){a[campo]=i.value;guardar();pintar()}});
+  upd("data-re","entrada");upd("data-rs","salida");
+  const ce=$("copEf");if(ce)ce.onclick=()=>copiar(textoPorEfectivo(adMes),"Detalle copiado");
+  $("copRen").onclick=()=>copiar(textoRendicion(adMes),"Rendición copiada");
+}
+let objAbierto=null;
+function vistaObjetivos(){
+  return `<section class="panel"><h2>Precio por hora</h2><p class="ayuda">Cada objetivo usa una categoría de precio; Bco. Nación y Banco Provincia comparten Bancos. Cada valor rige desde su fecha, así un aumento no cambia lo ya hecho.</p>
+    ${GRUPOS().map(g=>`<div class="item"><b>${esc(g)}</b><span class="ayuda">${esc(D.adObj.filter(o=>o.grupo===g).map(o=>o.nombre).join(", "))}</span>${D.adVal.filter(v=>v.grupo===g).sort((a,b)=>b.desde.localeCompare(a.desde)).map(v=>`<div class="tel" style="grid-template-columns:1fr auto"><span>Desde ${fechaAR(v.desde)}${v.cat?" ("+esc(v.cat)+")":""}: <b>${pesos(v.valor)}</b></span><button class="btn chico peligro" data-vb="${v.id}">Borrar</button></div>`).join("")||`<span class="pill">Sin precio cargado</span>`}
+      <div class="dos"><label>Valor por hora<input type="number" min="0" inputmode="decimal" id="vv_${esc(g)}"></label><label>Desde<input type="date" id="vd_${esc(g)}" value="${adMes}-01"></label></div><button class="btn chico" data-vok="${esc(g)}">Guardar precio</button></div>`).join("")}</section>
+  <section class="panel"><h2>Feriados y días sin servicio</h2><p class="ayuda">Ese día el objetivo no aparece para cubrir y el mensaje lo informa sin servicio.</p>
+    <div>${D.cierres.slice().sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(c=>`<div class="tel" style="grid-template-columns:1fr auto"><span>${fechaAR(c.fecha)} · ${esc(c.motivo)}<br><span class="ayuda">${esc(c.objs.map(id=>(D.adObj.find(o=>o.id===id)||{}).nombre).filter(Boolean).join(", "))}</span></span><button class="btn chico peligro" data-cb="${c.id}">Borrar</button></div>`).join("")||`<p class="ayuda">Sin feriados cargados.</p>`}</div>
+    <div class="dos"><label>Fecha<input type="date" id="cF"></label><label>Motivo<input id="cM" placeholder="Feriado bancario" autocomplete="off"></label></div>
+    <div class="fila">${D.adObj.map(o=>`<label class="check" style="border:0;padding:4px 8px 4px 0"><input type="checkbox" id="co_${o.id}" data-cobj="${o.id}" ${o.grupo==="Bancos"?"checked":""}><span>${esc(o.nombre)}</span></label>`).join("")}</div>
+    <button class="btn" id="cOk">Agregar día sin servicio</button></section>
+  <section class="panel"><h2>Objetivos y turnos</h2><datalist id="dlGr">${GRUPOS().map(g=>`<option value="${esc(g)}">`).join("")}</datalist>
+    ${D.adObj.map(o=>`<details data-oab="${o.id}" ${objAbierto===o.id?"open":""}><summary>${esc(o.nombre)} <span class="prog">${esc(o.grupo)}</span></summary><div class="vista" style="padding-top:0">
+      <div class="dos"><label>Nombre<input id="on_${o.id}" data-on="${o.id}" value="${esc(o.nombre)}" autocomplete="off"></label><label>Categoría de precio<input id="og_${o.id}" data-og="${o.id}" list="dlGr" value="${esc(o.grupo)}" autocomplete="off"></label></div><label class="check" style="border:0"><input type="checkbox" id="osi_${o.id}" data-osi="${o.id}" ${cubreSiempre(o)?"checked":""}><span>Se cubre en todos los adicionales (avisa si falta)</span></label><div><b style="font-size:14px;color:var(--suave)">Días que abre</b><div class="fila">${DIAS.map(([n,l])=>`<label class="check" style="border:0;padding:4px 6px 4px 0"><input type="checkbox" id="od_${o.id}_${n}" data-od="${o.id}" data-dn="${n}" ${diasDe(o).includes(n)?"checked":""}><span>${l}</span></label>`).join("")}</div></div>
+      ${o.puestos.map((p,i)=>`<div class="item"><b>Turno ${i+1}</b><div class="dos"><label>Nombre (Largo, Corto…)<input id="pn_${p.id}" data-pn="${p.id}" value="${esc(p.nombre)}" autocomplete="off"></label><label>Ingreso<input type="time" id="pe_${p.id}" data-pe="${p.id}" value="${esc(p.entrada)}"></label></div>
+        <div class="dos"><label>Salida habitual (vacía si varía)<input type="time" id="ps_${p.id}" data-ps="${p.id}" value="${esc(p.salida)}"></label><label class="check" style="border:0;align-self:end"><input type="checkbox" id="pf_${p.id}" data-pf="${p.id}" ${p.fija?"checked":""}><span>El mensaje muestra ingreso y salida</span></label></div>
+        <button class="btn chico peligro" data-pb="${p.id}">Quitar turno</button></div>`).join("")}
+      <div class="fila"><button class="btn chico" data-pa="${o.id}">Agregar turno</button><button class="btn chico peligro" data-ob="${o.id}">Borrar objetivo</button></div></div></details>`).join("")}
+    <button class="btn" id="oAdd">Agregar objetivo</button><p class="ayuda">Los horarios cargados acá se usan en los adicionales nuevos.</p></section>`;
+}
+function atarObjetivos(){
+  const obj=id=>D.adObj.find(o=>o.id===id),pu=id=>D.adObj.flatMap(o=>o.puestos).find(x=>x.id===id),dueño=id=>D.adObj.find(o=>o.puestos.some(p=>p.id===id));
+  document.querySelectorAll("[data-oab]").forEach(d=>d.ontoggle=()=>{if(d.open)objAbierto=d.dataset.oab;else if(objAbierto===d.dataset.oab)objAbierto=null});
+  document.querySelectorAll("[data-vok]").forEach(b=>b.onclick=()=>{const g=b.dataset.vok,v=+document.getElementById("vv_"+g).value,d=document.getElementById("vd_"+g).value;
+    if(!(v>0)||!d){tostada("Cargá valor y fecha");return}D.adVal.push({id:nuevoId(),grupo:g,valor:v,desde:d});guardar();pintar();tostada("Precio guardado")});
+  document.querySelectorAll("[data-vb]").forEach(b=>b.onclick=()=>seguro("¿Estás seguro de borrar este precio? Cambia el cálculo de la rendición.",()=>{D.adVal=D.adVal.filter(v=>v.id!==b.dataset.vb);registrarCambio("Borrado de precio por hora","");guardar();pintar()}));
+  document.querySelectorAll("[data-on]").forEach(i=>i.onchange=()=>{obj(i.dataset.on).nombre=i.value.trim()||"Sin nombre";guardar();pintar()});
+  document.querySelectorAll("[data-og]").forEach(i=>i.onchange=()=>{const o=obj(i.dataset.og);o.grupo=i.value.trim()||o.nombre;guardar();pintar()});
+  document.querySelectorAll("[data-pn]").forEach(i=>i.onchange=()=>{pu(i.dataset.pn).nombre=i.value.trim();guardar()});
+  document.querySelectorAll("[data-pe]").forEach(i=>i.onchange=()=>{pu(i.dataset.pe).entrada=i.value;guardar()});
+  document.querySelectorAll("[data-ps]").forEach(i=>i.onchange=()=>{pu(i.dataset.ps).salida=i.value;guardar()});
+  document.querySelectorAll("[data-pf]").forEach(i=>i.onchange=()=>{pu(i.dataset.pf).fija=i.checked;guardar()});
+  document.querySelectorAll("[data-od]").forEach(i=>i.onchange=()=>{const o=obj(i.dataset.od);o.dias=[...document.querySelectorAll(`[data-od="${o.id}"]`)].filter(x=>x.checked).map(x=>+x.dataset.dn);guardar()});
+  document.querySelectorAll("[data-cb]").forEach(b=>b.onclick=()=>seguro("¿Estás seguro de borrar este día sin servicio?",()=>{D.cierres=D.cierres.filter(c=>c.id!==b.dataset.cb);guardar();pintar()}));
+  $("cOk").onclick=()=>{const fe=$("cF").value,objs=[...document.querySelectorAll("[data-cobj]")].filter(x=>x.checked).map(x=>x.dataset.cobj);if(!fe||!objs.length){tostada("Elegí fecha y al menos un objetivo");return}D.cierres.push({id:nuevoId(),fecha:fe,motivo:$("cM").value.trim()||"Feriado",objs});guardar();pintar();tostada("Día sin servicio agregado")};
+  document.querySelectorAll("[data-osi]").forEach(i=>i.onchange=()=>{obj(i.dataset.osi).siempre=i.checked;guardar()});
+  document.querySelectorAll("[data-pa]").forEach(b=>b.onclick=()=>{obj(b.dataset.pa).puestos.push({id:nuevoId(),nombre:"",entrada:"",salida:"",nota:""});objAbierto=b.dataset.pa;guardar();pintar()});
+  document.querySelectorAll("[data-pb]").forEach(b=>b.onclick=()=>{const id=b.dataset.pb;if(D.adic.some(a=>a.puesto===id)){tostada("Ese turno tiene adicionales cargados");return}
+    seguro("¿Estás seguro de quitar este turno?",()=>{const o=dueño(id);o.puestos=o.puestos.filter(p=>p.id!==id);guardar();pintar()})});
+  document.querySelectorAll("[data-ob]").forEach(b=>b.onclick=()=>{const id=b.dataset.ob;if(D.adic.some(a=>a.obj===id)){tostada("Ese objetivo tiene adicionales cargados");return}
+    seguro("¿Estás seguro de borrar este objetivo?",()=>{D.adObj=D.adObj.filter(o=>o.id!==id);registrarCambio("Borrado de objetivo","");guardar();pintar()})});
+  $("oAdd").onclick=()=>{const id=nuevoId();D.adObj.push({id,nombre:"Nuevo objetivo",grupo:"Nuevo objetivo",puestos:[{id:nuevoId(),nombre:"",entrada:"",salida:"",nota:""}]});objAbierto=id;guardar();pintar()};
+}
+function vistaEfAd(){
+  return `${D.personal.length?`<section class="panel"><h2>Traer de tu guardia</h2><label>Copiar desde Personal<select id="adImp"><option value="">Elegir</option>${D.personal.filter(p=>!D.adEf.some(e=>e.origen===p.id)).map(p=>`<option value="${p.id}">${esc(nombreP(p))}</option>`).join("")}</select></label><p class="ayuda">Después completá su tipo de servicio.</p></section>`:""}${vistaReg("adEf")}`;
+}
+function atarEfAd(){const s=$("adImp");if(s)s.onchange=()=>{const p=D.personal.find(x=>x.id===s.value);if(p){D.adEf.push({id:nuevoId(),origen:p.id,jer:p.jer,nombre:p.nombre,legajo:p.legajo,dni:p.dni,tel:p.tel,loc:p.loc,reg:"24x48",ref:D.turnos.ref});guardar();pintar();tostada("Efectivo agregado")}};atarReg("adEf")}
+const SUBA=[["armar","Armar",vistaArmar,atarArmar],["efectivos","Efectivos",vistaEfAd,atarEfAd],["rendicion","Rendición",vistaRendicion,atarRendicion],["objetivos","Objetivos",vistaObjetivos,atarObjetivos]];
+function vistaAdic(){const S=SUBA.find(x=>x[0]===subA);return `<div class="vista">${subnav(SUBA.map(x=>[x[0],x[1]]),subA,"data-sad")}${S[2]()}</div>`}
+function atarAdic(){document.querySelectorAll("[data-sad]").forEach(b=>b.onclick=()=>{subA=b.dataset.sad;pintar()});SUBA.find(x=>x[0]===subA)[3]()}
+
+/* ---------- Navegación ---------- */
+const TABS=[["inicio","Inicio",vistaInicio,atarInicio],["registro","Registro",vistaRegistro,atarRegistro],["servicio","Servicio",vistaServicio,atarServicio],["moviles","Móviles",vistaMoviles,atarMoviles],["adicionales","Adicional",vistaAdic,atarAdic],["mas","Más",vistaMas,atarMas]];
+let tab=TABS.some(t=>t[0]===location.hash.slice(1))?location.hash.slice(1):"inicio";
+function ir(t){if(!TABS.some(x=>x[0]===t)&&MAS.some(x=>x[0]===t)){subM=t;t="mas"}tab=t;try{location.hash=t}catch(e){}pintar();$("main").scrollTop=0}
+function pintar(){
+  if(!desbloqueada)return;
+  const T=TABS.find(t=>t[0]===tab);const y=$("main").scrollTop;
+  $("main").innerHTML=T[2]();T[3]();$("main").scrollTop=y;
+  $("nav").innerHTML=TABS.map(t=>`<button data-t="${t[0]}" ${t[0]===tab?'aria-current="page"':""}>${t[1]}</button>`).join("");
+  document.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>ir(b.dataset.t));
+}
+window.addEventListener("hashchange",()=>{const h=location.hash.slice(1);if(h!==tab&&TABS.some(t=>t[0]===h)){tab=h;pintar()}});
+function reloj(){$("reloj").textContent=horaAhora()}
+setInterval(reloj,15000);reloj();iniciarProteccion();
+if("serviceWorker" in navigator && location.protocol!=="file:"){
+  window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(()=>tostada("No se pudo activar el modo sin conexión")));
+}
+if(navigator.storage&&navigator.storage.persist){navigator.storage.persist().catch(()=>{});}
+</script>
+</body>
+</html>
